@@ -12,7 +12,7 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.3-purple.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.0.4-purple.svg)](CHANGELOG.md)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#-architecture)
 [![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#-project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#-security)
@@ -244,7 +244,7 @@ with AkashaClient("localhost:50051") as client:
 
 **Upgrade Mode (v1.0.2)**: For zero-downtime rolling upgrades, enable upgrade mode via `POST /api/v1/cluster/upgrade`. The cluster temporarily accepts +1 node beyond the license limit with a configurable grace period (default: 1 hour). After the grace period, the extra node is automatically evicted.
 
-**License Expiration Watchdog (v1.0.3)**: Paid licenses (Basic/Enterprise) now enforce expiration with a background watchdog. The system warns at 30, 7, and 1 day before expiration, enters a 48-hour read-only grace period after expiry (writes return 503), and shuts down after the grace period ends. Monitor status via `GET /api/v1/license/status`. Community tier licenses remain perpetual.
+**License Expiration Watchdog (v1.0.4)**: Paid licenses (Basic/Enterprise) now enforce expiration with a background watchdog. The system warns at 30, 7, and 1 day before expiration, enters a 48-hour read-only grace period after expiry (writes return 503), and shuts down after the grace period ends. Monitor status via `GET /api/v1/license/status`. Community tier licenses remain perpetual.
 
 ---
 
@@ -272,10 +272,10 @@ with AkashaClient("localhost:50051") as client:
 
 | Platform | Architecture | |
 |----------|-------------|---|
-| Linux | x86_64 (amd64) | `akasha-v1.0.3-linux-amd64.tar.gz` |
-| Linux | aarch64 (arm64) | `akasha-v1.0.3-linux-arm64.tar.gz` |
-| macOS | Apple Silicon | `akasha-v1.0.3-darwin-arm64.tar.gz` |
-| Docker | Multi-arch | `ghcr.io/ocuil/akasha:1.0.3` |
+| Linux | x86_64 (amd64) | `akasha-v1.0.4-linux-amd64.tar.gz` |
+| Linux | aarch64 (arm64) | `akasha-v1.0.4-linux-arm64.tar.gz` |
+| macOS | Apple Silicon | `akasha-v1.0.4-darwin-arm64.tar.gz` |
+| Docker | Multi-arch | `ghcr.io/ocuil/akasha:1.0.4` |
 
 See [Releases](https://github.com/ocuil/akasha-public/releases) for downloads.
 
