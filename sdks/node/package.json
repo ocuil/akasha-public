@@ -1,0 +1,39 @@
+{
+  "name": "@akasha/client",
+  "version": "1.0.0",
+  "description": "Node.js SDK for Akasha — The Shared Cognitive Fabric for Intelligent Agent Systems",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "ASL-1.0",
+  "author": "Alejandro Sánchez Losa <dev@alejandrosl.com>",
+  "homepage": "https://github.com/ocuil/akasha-public",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "generate:proto": "bash scripts/generate_proto.sh",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.0",
+    "msgpackr": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0",
+    "grpc-tools": "^1.12.0",
+    "grpc_tools_node_protoc_ts": "^5.3.0"
+  },
+  "files": [
+    "dist",
+    "proto",
+    "README.md",
+    "LICENSE"
+  ]
+}
