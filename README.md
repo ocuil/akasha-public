@@ -303,12 +303,15 @@ See [Releases](https://github.com/ocuil/akasha-public/releases) for downloads.
 
 | Document | Description |
 |----------|-------------|
+| [User Guide](USER_GUIDE.md) | Complete guide: installation, memory architecture, API reference, system prompts |
+| [**Agent Integrations**](INTEGRATIONS.md) | **Connect Pi, LangGraph, CrewAI, AutoGen, OpenAI SDK, Google ADK, and more** |
 | [Installation Guide](installation.md) | Standalone, cluster, Docker, and Kubernetes deployment |
 | [Configuration Reference](configuration.md) | Complete TOML configuration reference |
 | [Authentication & Security](authentication.md) | Users, JWT tokens, API keys, and RBAC |
 | [Python SDK Guide](sdk-python.md) | Full Python SDK tutorial with examples |
 | [Node.js SDK Guide](sdk-nodejs.md) | Full Node.js/TypeScript SDK tutorial |
 | [Agent Patterns](agent-patterns.md) | Stigmergy, memory fabric, and pheromone patterns |
+| [Agent Skills](skills/) | Pre-built skills (agentskills.io standard) for agent onboarding |
 | [Cluster Operations](cluster-operations.md) | Scaling, failover, monitoring, and anti-entropy |
 | [REST API Reference](api-reference.md) | Complete HTTP/WebSocket API reference |
 | [Dashboard Guide](dashboard.md) | Web dashboard usage and features |
