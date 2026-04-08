@@ -2,6 +2,36 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.0.5] — 2026-04-08
+
+### 📊 Dashboard: System Metrics & Node Monitoring
+
+- **Cluster-aggregated resource gauges**: CPU (avg), Memory, and Disk usage across all nodes
+- **Per-node CPU/Memory bars**: Mini progress bars inside each NodeCard
+- **Heartbeat indicator**: Color-coded heartbeat (green/amber/red) replaces "Last Seen"
+- **Responding node indicator**: "⚡ Connected to: akasha-XX" in dashboard header
+- **Alphabetical node sorting**: Consistent node order across refreshes
+
+### 🔧 Backend: System Metrics API
+
+- **`GET /api/v1/system/metrics`**: Returns CPU, memory, and disk for the responding node
+- **`X-Akasha-Node` response header**: Identifies which node served the request
+
+### 🛡️ WebSocket Stability
+
+- **TLS close_notify noise eliminated**: Log level downgraded for normal agent disconnects
+- **Nginx LB tuning**: `worker_connections` 1024→4096, `proxy_timeout` 30s→24h
+
+## [1.0.4] — 2026-04-07
+
+### 🔐 UX Hardening & Agent Interoperability
+
+- **Custom modals**: Replaced native browser `confirm()` with in-app modals
+- **Error pages**: Browser-aware 401/403/404 HTML responses
+- **Agent Skills**: 5 standardized skills (agentskills.io format)
+- **User Guide**: Comprehensive installation, API, and memory architecture guide
+- **Agent Integration Guide**: INTEGRATIONS.md — connect Pi, LangGraph, CrewAI, and more
+
 ## [1.0.0] — 2026-04-06
 
 ### 🎉 First Production Release
