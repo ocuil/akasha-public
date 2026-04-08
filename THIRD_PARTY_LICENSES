@@ -1,0 +1,59 @@
+Third-Party Licenses
+====================
+
+Akasha includes or depends on the following third-party software:
+
+
+RocksDB
+-------
+Copyright (c) 2011-present, Meta Platforms, Inc. and affiliates.
+License: Apache License 2.0
+Source: https://github.com/facebook/rocksdb
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+
+DashMap
+-------
+Copyright (c) Joel Wejdenstål
+License: MIT
+Source: https://github.com/xacrimon/dashmap
+
+
+Tokio
+-----
+Copyright (c) Tokio Contributors
+License: MIT
+Source: https://github.com/tokio-rs/tokio
+
+
+Axum
+----
+Copyright (c) Tokio Contributors
+License: MIT
+Source: https://github.com/tokio-rs/axum
+
+
+Tonic (gRPC)
+------------
+Copyright (c) Lucio Franco
+License: MIT
+Source: https://github.com/hyperium/tonic
+
+
+MessagePack (rmp-serde)
+-----------------------
+Copyright (c) Evgeny Safronov
+License: MIT
+Source: https://github.com/3Hren/msgpack-rust
+
+
+React
+-----
+Copyright (c) Meta Platforms, Inc. and affiliates.
+License: MIT
+Source: https://github.com/facebook/react

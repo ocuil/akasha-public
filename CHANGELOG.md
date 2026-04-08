@@ -2,40 +2,69 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.0.7] — 2026-04-08
+
+### Fixed
+- Gossip probe round-robin: was always probing same peer (even sequence % 2 = 0)
+- Health endpoint: `peers_total` no longer counts dead/phantom nodes from previous sessions
+- Sync bridge log noise: downgraded `delta batch` message from INFO to debug
+- RocksDB: LOG.old files no longer accumulate (limited to 3 retained, WAL recycled)
+
+### Changed
+- Nidra `/api/v1/nidra/status`: returns structured JSON (cycle_count, leader, is_leader, last_cycle_at) instead of raw integer
+
+### Added
+- **Explorer redesign**: Professional tree view with collapsible folders, color-coded namespaces, path search filter, namespace filter chips, memory layer summary, and syntax-highlighted JSON inspector with metadata panel
+- **Explorer CRUD**: Inline JSON edit, single record delete with confirmation, namespace purge with confirmation, success/error feedback toasts
+- `THIRD_PARTY_LICENSES`: Attribution for RocksDB (Apache-2.0), DashMap, Tokio, Axum, Tonic, rmp-serde, React
+
 ## [1.0.6] - 2026-04-08
 
 ### Fixed
-- Gossip MTU exceeded warning eliminated (SystemMetrics excluded from gossip)
-- Dashboard heartbeat green for all nodes regardless of serving node
-- Dashboard sidebar active page highlights correctly when navigating
-- Dashboard emoji icons render correctly across all browsers
-- Anti-entropy and CRDT sync log spam eliminated in production
+- Gossip MTU: SystemMetrics excluded from gossip packets (was 2KB+ UDP)
+- Dashboard heartbeat: all nodes show green regardless of serving node
+- Dashboard sidebar: active page highlights correctly (useLocation)
+- Dashboard icons: restored emoji icons rendering across browsers
+- Anti-entropy and CRDT sync log spam downgraded to debug level
 
 ### Added
-- Per-node CPU/MEM metrics propagated via gossip PingAck
-- Background system metrics refresh every 5s per node
-- Content-Security-Policy meta tag in dashboard
+- Per-node metrics via gossip: cpu_pct/mem_pct piggybacked on PingAck
+- Background metrics refresh every 5s per node
+- CSP meta tag in dashboard
 - Docker log rotation (30MB cap per container)
-- Round-robin gossip probe for better cluster monitoring
 
 ### Changed
-- UDP receive buffer increased to 8KB for internal cluster networks
+- UDP receive buffer increased to 8KB for internal networks
+- MTU warning downgraded to debug (fragmentation OK on Docker bridges)
 
-## [1.0.5] - 2026-04-08
+## [1.0.5] — 2026-04-08
 
-### Dashboard: System Metrics and Node Monitoring
-- Cluster-aggregated resource gauges: CPU, Memory, Disk
-- Per-node CPU/Memory bars in NodeCard
-- Heartbeat indicator with color coding
-- Responding node indicator in header
+### 📊 Dashboard: System Metrics & Node Monitoring
 
-### Backend: System Metrics API
-- GET /api/v1/system/metrics endpoint
-- X-Akasha-Node response header
+- **Cluster-aggregated resource gauges**: CPU (avg), Memory, and Disk usage across all nodes
+- **Per-node CPU/Memory bars**: Mini progress bars inside each NodeCard
+- **Heartbeat indicator**: Replaced confusing "Last Seen" with color-coded heartbeat (green/amber/red)
+- **Responding node indicator**: "⚡ Connected to: akasha-XX" shown in dashboard header
+- **Alphabetical node sorting**: Nodes always rendered in consistent order
+- **Nidra last cycle**: Shows relative time ("3m ago") instead of raw timestamp
 
-### WebSocket Stability
-- TLS close_notify noise eliminated
-- Nginx LB tuning (4096 workers, 24h timeout)
+### 🔧 Backend: System Metrics API
+
+- **`GET /api/v1/system/metrics`**: New endpoint returning CPU, memory, and disk for the responding node
+- **`X-Akasha-Node` response header**: Every API response includes the node ID that served it
+- **`SystemMetrics` in `NodeInfo`**: CPU/memory/disk metrics carried via gossip to all nodes
+- **`sysinfo` crate**: Cross-platform system metrics collection (CPU, memory, disk)
+
+### 🛡️ WebSocket Stability
+
+- **TLS close_notify suppression**: Downgraded from `WARN` to `debug!` — eliminates log spam from agent reconnections
+- **WebSocket error noise reduction**: All WS disconnect/error logs moved to debug level
+
+### ⚙️ Infrastructure (Nginx LB)
+
+- **`worker_connections`**: 1024 → 4096 (prevents connection exhaustion under heavy agent load)
+- **`proxy_timeout`**: 30s → 86400s (24h — WebSocket connections no longer killed by LB timeout)
+- **TCP keepalive**: Enabled for dead connection detection
 
 ## [1.0.4] — 2026-04-07
 
@@ -44,8 +73,45 @@ All notable changes to Akasha are documented in this file.
 - **Custom modals**: Replaced native browser `confirm()` with in-app modals
 - **Error pages**: Browser-aware 401/403/404 HTML responses
 - **Agent Skills**: 5 standardized skills (agentskills.io format)
-- **User Guide**: Comprehensive installation, API, and memory architecture guide
-- **Agent Integration Guide**: INTEGRATIONS.md — connect Pi, LangGraph, CrewAI, and more
+- **User Guide**: ~1000 lines covering installation, API, memory architecture
+- **Agent Integration Guide**: INTEGRATIONS.md with Pi, LangGraph, CrewAI, AutoGen + 6 more frameworks
+
+## [1.0.3] — 2026-04-07
+
+### 🔐 License Expiration Watchdog
+
+- **Periodic expiry check**: Background watchdog verifies license every hour
+- **Warning thresholds**: Logs warnings at 30, 7, and 1 day before expiration
+- **Grace period**: 48h read-only mode after expiration — reads work, writes return 503
+- **Hard shutdown**: Server exits after grace period ends
+- **Startup check**: Server refuses to start if license is past grace period
+- **License status API**: `GET /api/v1/license/status` reports expiry info (for dashboards)
+- **CLI info**: `akasha-license info` now shows expiry status with visual indicators
+
+### 🔧 CI/CD Fix
+
+- Fixed `secrets` context in GitHub Actions step-level `if` conditions (was breaking all CI runs)
+- All releases (v1.0.0, v1.0.1, v1.0.2) now published with binaries for linux-amd64, linux-arm64, darwin-arm64
+
+### 📊 Benchmark Suite
+
+- E2E benchmark with real LLM agents on DGX Spark
+- Dockerfile now downloads published release binary (no source code exposure)
+- Results: 2,237 ops/sec, 0.1% LLM pipeline overhead, zero scaling degradation
+
+## [1.0.2] — 2026-04-06
+
+### 🔄 Cluster Upgrade Mode (Grow & Shrink)
+
+- **Upgrade mode API**: `POST /api/v1/cluster/upgrade` enables temporary node addition
+- **Auto-eviction**: Extra nodes are evicted after grace period (default 1h)
+- **License-aware**: Upgrade mode temporarily allows max_nodes+1 without license conflict
+
+### 📄 License v2 — Installation-Bound Fingerprinting
+
+- Licenses are now bound to an `installation_id` (generated on first boot)
+- `akasha-license fingerprint` CLI for generating cluster fingerprints
+- Prevents license reuse across different installations
 
 ## [1.0.0] — 2026-04-06
 
