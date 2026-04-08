@@ -12,7 +12,7 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.5-purple.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.0.6-purple.svg)](CHANGELOG.md)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#-architecture)
 [![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#-project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#-security)
@@ -272,10 +272,10 @@ with AkashaClient("localhost:50051") as client:
 
 | Platform | Architecture | |
 |----------|-------------|---|
-| Linux | x86_64 (amd64) | `akasha-v1.0.5-linux-amd64.tar.gz` |
-| Linux | aarch64 (arm64) | `akasha-v1.0.5-linux-arm64.tar.gz` |
-| macOS | Apple Silicon | `akasha-v1.0.5-darwin-arm64.tar.gz` |
-| Docker | Multi-arch | `ghcr.io/ocuil/akasha:1.0.5` |
+| Linux | x86_64 (amd64) | `akasha-v1.0.6-linux-amd64.tar.gz` |
+| Linux | aarch64 (arm64) | `akasha-v1.0.6-linux-arm64.tar.gz` |
+| macOS | Apple Silicon | `akasha-v1.0.6-darwin-arm64.tar.gz` |
+| Docker | Multi-arch | `ghcr.io/ocuil/akasha:1.0.6` |
 
 See [Releases](https://github.com/ocuil/akasha-public/releases) for downloads.
 

@@ -2,25 +2,40 @@
 
 All notable changes to Akasha are documented in this file.
 
-## [1.0.5] — 2026-04-08
+## [1.0.6] - 2026-04-08
 
-### 📊 Dashboard: System Metrics & Node Monitoring
+### Fixed
+- Gossip MTU exceeded warning eliminated (SystemMetrics excluded from gossip)
+- Dashboard heartbeat green for all nodes regardless of serving node
+- Dashboard sidebar active page highlights correctly when navigating
+- Dashboard emoji icons render correctly across all browsers
+- Anti-entropy and CRDT sync log spam eliminated in production
 
-- **Cluster-aggregated resource gauges**: CPU (avg), Memory, and Disk usage across all nodes
-- **Per-node CPU/Memory bars**: Mini progress bars inside each NodeCard
-- **Heartbeat indicator**: Color-coded heartbeat (green/amber/red) replaces "Last Seen"
-- **Responding node indicator**: "⚡ Connected to: akasha-XX" in dashboard header
-- **Alphabetical node sorting**: Consistent node order across refreshes
+### Added
+- Per-node CPU/MEM metrics propagated via gossip PingAck
+- Background system metrics refresh every 5s per node
+- Content-Security-Policy meta tag in dashboard
+- Docker log rotation (30MB cap per container)
+- Round-robin gossip probe for better cluster monitoring
 
-### 🔧 Backend: System Metrics API
+### Changed
+- UDP receive buffer increased to 8KB for internal cluster networks
 
-- **`GET /api/v1/system/metrics`**: Returns CPU, memory, and disk for the responding node
-- **`X-Akasha-Node` response header**: Identifies which node served the request
+## [1.0.5] - 2026-04-08
 
-### 🛡️ WebSocket Stability
+### Dashboard: System Metrics and Node Monitoring
+- Cluster-aggregated resource gauges: CPU, Memory, Disk
+- Per-node CPU/Memory bars in NodeCard
+- Heartbeat indicator with color coding
+- Responding node indicator in header
 
-- **TLS close_notify noise eliminated**: Log level downgraded for normal agent disconnects
-- **Nginx LB tuning**: `worker_connections` 1024→4096, `proxy_timeout` 30s→24h
+### Backend: System Metrics API
+- GET /api/v1/system/metrics endpoint
+- X-Akasha-Node response header
+
+### WebSocket Stability
+- TLS close_notify noise eliminated
+- Nginx LB tuning (4096 workers, 24h timeout)
 
 ## [1.0.4] — 2026-04-07
 
