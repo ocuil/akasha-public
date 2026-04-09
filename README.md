@@ -13,6 +13,7 @@
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.8-purple.svg)](Cargo.toml)
+[![Docker](https://img.shields.io/docker/v/alejandrosl/akasha?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/alejandrosl/akasha)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
 [![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
@@ -277,11 +278,14 @@ Community tier licenses are **perpetual** — no expiration.
 ### Option 1: Docker (Recommended)
 
 ```bash
+# Pull from Docker Hub
+docker pull alejandrosl/akasha:latest
+
 # Run Akasha with a single command
 docker run -d --name akasha \
   -p 7777:7777 -p 50051:50051 \
   -v akasha-data:/akasha-data \
-  ghcr.io/ocuil/akasha:latest
+  alejandrosl/akasha:latest
 
 # TLS certificates are auto-generated on first boot
 # Trust the CA for green-lock HTTPS:
