@@ -12,14 +12,12 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.6-purple.svg)](CHANGELOG.md)
-[![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#-architecture)
-[![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#-project-status)
-[![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#-security)
+[![Version](https://img.shields.io/badge/Version-1.0.7-purple.svg)](Cargo.toml)
+[![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
+[![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#project-status)
+[![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
 [![Rust](https://img.shields.io/badge/Engine-Rust-orange.svg)](https://www.rust-lang.org/)
 [![gRPC](https://img.shields.io/badge/Protocol-gRPC-green.svg)](https://grpc.io/)
-
-[Quick Start](#-quick-start) · [Documentation](#-documentation) · [Architecture](#-architecture) · [Why Akasha?](#-why-akasha) · [Community](#-community)
 
 </div>
 
@@ -74,12 +72,12 @@ with AkashaClient("localhost:50051") as client:
 
 Modeled after the human memory hierarchy from cognitive science:
 
-| Layer | Purpose | Lifespan |
-|-------|---------|----------|
-| **Working** | Current task context — the agent's scratchpad | Minutes |
-| **Episodic** | What happened — decisions, outcomes, timelines | Hours → Days |
-| **Semantic** | What we know — facts, patterns, learned insights | Days → Permanent |
-| **Procedural** | How to do things — proven playbooks, workflows | Permanent |
+| Layer | Path | Purpose | Lifespan |
+|-------|------|---------|----------|
+| **Working** | `memory/working/{agent}/` | Current task context — the agent's scratchpad | Minutes |
+| **Episodic** | `memory/episodic/{topic}/` | What happened — decisions, outcomes, timelines | Hours → Days |
+| **Semantic** | `memory/semantic/{domain}/` | What we know — facts, patterns, learned insights | Days → Permanent |
+| **Procedural** | `memory/procedural/{workflow}/` | How to do things — proven playbooks, workflows | Permanent |
 
 Records naturally flow upward through Nidra consolidation:
 
@@ -93,19 +91,34 @@ Named after *Yoga Nidra* (yogic sleep), Nidra is a background process that mimic
 
 **Three sleep stages:**
 
-1. **Light Sleep (Sweep)** — Every 5 minutes: evaporates decayed pheromones, expires stale working memory
-2. **Deep Sleep (Consolidate)** — Every ~1 hour: scans episodic memory, extracts patterns into semantic knowledge
-3. **REM (Optimize)** — On-demand: identifies redundant records, merges trails into procedural memory
+1. **Light Sleep (Sweep)** — Every 5 minutes
+   - Evaporates decayed pheromones below threshold
+   - Expires stale working memory
+   - Counts records per memory layer → emits metrics
+
+2. **Deep Sleep (Consolidate)** — Every ~1 hour
+   - Scans episodic memory for high-activity topics
+   - Extracts patterns into semantic knowledge
+   - Tags source records as consolidated
+
+3. **REM (Optimize)** — On-demand
+   - Identifies redundant records
+   - Merges pheromone trails into procedural memory
+   - Reports housekeeping stats to `system/nidra/last-cycle`
+
+Nidra supports **two consolidation modes**:
+- **Rule-based** (default, LLM-free) — counting, thresholds, dedup
+- **LLM-powered** (Enterprise) — pluggable `ConsolidationHook` trait with built-in Ollama/OpenAI support
 
 ---
 
-## 💡 Why Akasha?
+## Why Akasha?
 
-In complex multi-agent systems — RAG pipelines, automation workflows, LLM orchestrators — agents need to know what other agents are doing, **without asking them**.
+In complex multi-agent systems (RAG pipelines, automation workflows, LLM orchestrators), agents need to know what other agents are doing — **without asking them**.
 
 | Problem | Akasha Solution |
 |---------|----------------|
-| Agent A needs Agent B's status | B writes to `agents/b/state`, A reads instantly |
+| Agent A needs Agent B's status | Agent B writes to `agents/b/state`, A reads instantly |
 | Dashboard needs real-time view | WebSocket subscription to `**` — all events live |
 | Detecting stale agents | TTL + automatic reaper removes expired state |
 | Querying "all agents of type X" | Glob pattern `agents/*/state` with tag filters |
@@ -113,80 +126,14 @@ In complex multi-agent systems — RAG pipelines, automation workflows, LLM orch
 | Avoiding duplicate work | `claim` pheromones signal "I'm working on this" |
 | Learning from collective experience | Nidra distills episodic outcomes into wisdom |
 
----
+## Architecture
 
-## 🚀 Quick Start
-
-### Install (Linux / macOS)
-
-```bash
-curl -fsSL https://akasha-installer.akasha.workers.dev/install | bash
-```
-
-### Docker
-
-```bash
-# Single node
-docker run -d --name akasha \
-  -p 7777:7777 -p 50051:50051 \
-  -v akasha-data:/akasha-data \
-  ghcr.io/ocuil/akasha:latest
-
-# Verify
-curl -sk https://localhost:7777/api/v1/health
-```
-
-### 3-Node Cluster (Enterprise)
-
-```bash
-docker compose up -d   # 3 nodes with SWIM gossip + CRDT replication
-
-# Write on node-01, read from node-02 (replicated!)
-curl -sk -X POST https://localhost:7771/api/v1/records/agents/test/state \
-  -H "Content-Type: application/json" \
-  -d '{"value": {"status": "active"}}'
-curl -sk https://localhost:7772/api/v1/records/agents/test/state
-```
-
-### Python SDK
-
-```python
-from akasha import AkashaClient, MemoryLayer, SignalType
-
-with AkashaClient("localhost:50051") as client:
-    # Write state — inscribe into the Records
-    client.put("agents/planner/state", {
-        "status": "processing",
-        "task": "generate-report",
-    })
-
-    # Stigmergy — deposit and sense pheromones
-    client.deposit_pheromone(
-        "pipelines/data-enrichment",
-        signal_type=SignalType.DISCOVERY,
-        emitter="planner-01",
-    )
-
-    # Cognitive Fabric — write to memory layers
-    client.write_memory(
-        MemoryLayer.SEMANTIC,
-        "workflows/enrichment-patterns",
-        {"pattern": "batch_enrichment", "confidence": 0.78},
-    )
-
-    # Real-time subscriptions — the fabric speaks
-    for event in client.subscribe("agents/**"):
-        print(f"[{event.kind}] {event.path}")
-```
-
----
-
-## 🏗 Architecture
+### Standalone Mode (Community / Basic)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                         A K A S H A                              │
-│                    Shared Cognitive Fabric                        │
+│                         A K A S H A                             │
+│                  Shared Cognitive Fabric                         │
 │                                                                  │
 │  ┌─────────────┐  ┌─────────────┐  ┌────────────┐  ┌──────────┐ │
 │  │   DashMap   │  │  Event Bus  │  │ TTL Reaper │  │  Nidra   │ │
@@ -210,174 +157,734 @@ with AkashaClient("localhost:50051") as client:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### Enterprise Clustering
+### Enterprise Clustering (3+ Nodes)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AKASHA CLUSTER (Enterprise)                   │
+│                    AKASHA CLUSTER (Enterprise)                    │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────┐        │
 │  │          Control Plane (GossipRaft · 3 nodes)        │        │
 │  │                                                      │        │
 │  │  Node 1 (Leader)    Node 2         Node 3            │        │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐     │        │
-│  │  │ Raft Log   │  │ (Follower) │  │ (Follower) │     │        │
-│  │  │ Nidra Lead │  │            │  │            │     │        │
-│  │  └────────────┘  └────────────┘  └────────────┘     │        │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐      │        │
+│  │  │ Raft Log   │  │ (Follower) │  │ (Follower) │      │        │
+│  │  │ Nidra Lead │  │            │  │            │      │        │
+│  │  └────────────┘  └────────────┘  └────────────┘      │        │
 │  └──────────────────────────────────────────────────────┘        │
 │                          │                                       │
 │                SWIM Gossip (UDP :7946)                            │
-│             HMAC-SHA256 authenticated                            │
+│             HMAC-SHA256 authenticated                             │
 │                          │                                       │
 │  ┌──────────────────────────────────────────────────────┐        │
 │  │           Data Plane (CRDT · all nodes)              │        │
 │  │                                                      │        │
+│  │  Each node:                                          │        │
+│  │  • DashMap + RocksDB (local state)                   │        │
 │  │  • HLC + LWW registers (conflict resolution)        │        │
 │  │  • Delta gossip (sub-10ms LAN convergence)           │        │
 │  │  • Anti-entropy (15s full-state reconciliation)      │        │
+│  │  • MTU-safe batch chunking (UDP-friendly)            │        │
 │  └──────────────────────────────────────────────────────┘        │
 │                                                                  │
-│  Agents connect to ANY node — zero routing complexity            │
+│  ┌──────────────────────────────────────────────────────┐        │
+│  │  Gateway (every node — agents connect to ANY node)   │        │
+│  │  gRPC :50051  │  HTTPS :7777  │  Gossip :7946        │        │
+│  └──────────────────────────────────────────────────────┘        │
 │  🔐 mTLS inter-node · 🔑 License-bound cluster ID               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Upgrade Mode (v1.0.2)**: For zero-downtime rolling upgrades, enable upgrade mode via `POST /api/v1/cluster/upgrade`. The cluster temporarily accepts +1 node beyond the license limit with a configurable grace period (default: 1 hour). After the grace period, the extra node is automatically evicted.
+**Key operational properties:**
+- Agents connect to **any node** — no routing complexity
+- Writes are applied **locally first**, then propagated via CRDT delta gossip (<10ms LAN convergence)
+- If a node dies, the other 2 continue serving; rejoining nodes recover via **anti-entropy**
+- Nidra consolidation runs **only on the elected leader** to avoid duplicate work
+- Adding/removing nodes: automatic SWIM discovery + CRDT sync — **zero configuration**
 
-**License Expiration Watchdog (v1.0.4)**: Paid licenses (Basic/Enterprise) now enforce expiration with a background watchdog. The system warns at 30, 7, and 1 day before expiration, enters a 48-hour read-only grace period after expiry (writes return 503), and shuts down after the grace period ends. Monitor status via `GET /api/v1/license/status`. Community tier licenses remain perpetual.
+#### Cluster Upgrade Mode (Grow & Shrink) — v1.0.2
 
----
+For zero-downtime rolling upgrades, the cluster supports a **temporary +1 node grace period**:
 
-## 🔒 Security
+```bash
+# 1. Enable upgrade mode (default: 1 hour grace period)
+curl -sk -X POST https://node-01:7777/api/v1/cluster/upgrade \
+  -H "Content-Type: application/json" \
+  -d '{"activated_by": "admin", "grace_period_secs": 3600}'
 
-- **TLS everywhere** — Auto-generated certificates on first boot
-- **Authentication** — JWT tokens + API keys with Argon2id password hashing
-- **RBAC** — Admin, User, and ReadOnly roles
-- **mTLS** — Mutual TLS for inter-node cluster communication
-- **HMAC-SHA256** — Authenticated gossip protocol
+# 2. Add new node to the cluster (joins via SWIM gossip)
+#    The cluster now accepts max_nodes + 1 temporarily
 
----
+# 3. Migrate workload / data to new node
 
-## ⚡ Performance
+# 4. Remove the old node (shrink back to max_nodes)
+#    OR the grace period expires and the upgrade node is auto-evicted
+
+# Check status
+curl -sk https://node-01:7777/api/v1/cluster/upgrade
+
+# Manually disable and evict
+curl -sk -X DELETE https://node-01:7777/api/v1/cluster/upgrade
+```
+
+| State | Max Nodes | Duration |
+|-------|:---------:|:--------:|
+| Normal | license limit (e.g. 3) | Permanent |
+| Upgrade mode | license limit + 1 | Grace period (default 1h) |
+| After grace expires | license limit | Auto-evicts last node |
+
+#### License Expiration Watchdog — v1.0.3
+
+Paid licenses (Basic/Enterprise) now enforce expiration with a background watchdog:
+
+```
+  ┌──────────┐  30d  ┌──────────┐  7d  ┌──────────┐  1d  ┌──────────┐
+  │  Valid    │ ───→  │ Warning  │ ──→  │ Warning  │ ──→  │ Warning  │
+  │ (normal) │       │ (30 day) │      │ (7 day)  │      │ (1 day)  │
+  └──────────┘       └──────────┘      └──────────┘      └────┬─────┘
+                                                              │ 0d
+                                                              ▼
+                                                      ┌──────────────┐
+                                                      │ Grace Period │
+                                                      │ (read-only)  │
+                                                      │  48 hours    │
+                                                      └──────┬───────┘
+                                                             │ -48h
+                                                             ▼
+                                                      ┌──────────────┐
+                                                      │   Expired    │
+                                                      │  exit(1)     │
+                                                      └──────────────┘
+```
+
+| Phase | Behavior |
+|-------|----------|
+| **Valid** | Normal operation |
+| **Warning** (30/7/1d) | Warning in logs every hour |
+| **Grace period** (0–48h after expiry) | READ-ONLY mode — reads work, writes return `503` |
+| **Expired** (>48h after expiry) | Server exits with code 1 |
+
+Monitor via API:
+```bash
+curl -sk https://localhost:7777/api/v1/license/status
+# {"status": "warning", "days_left": 7, "read_only": false, "tier": "Enterprise"}
+```
+
+Community tier licenses are **perpetual** — no expiration.
+
+## Quick Start
+
+### Option 1: Docker (Recommended)
+
+```bash
+# Run Akasha with a single command
+docker run -d --name akasha \
+  -p 7777:7777 -p 50051:50051 \
+  -v akasha-data:/akasha-data \
+  ghcr.io/ocuil/akasha:latest
+
+# TLS certificates are auto-generated on first boot
+# Trust the CA for green-lock HTTPS:
+docker cp akasha:/akasha-data/tls/ca.pem ./akasha-ca.pem
+```
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/ocuil/akasha.git
+cd akasha
+cargo build --release
+
+# Run (auto-generates TLS certs on first boot)
+cargo run --release
+
+# Or with a custom config
+cargo run --release -- akasha.toml
+```
+
+### Option 3: 3-Node Enterprise Cluster
+
+```bash
+# Requires Enterprise license
+docker compose up -d   # Starts 3 nodes with SWIM gossip + CRDT replication
+
+# Check cluster health (3 nodes, all alive)
+curl -sk https://localhost:7771/api/v1/cluster/nodes | jq
+
+# Write on node-01, read from node-02 (CRDT replication)
+curl -sk -X POST https://localhost:7771/api/v1/records/agents/test/state \
+  -H "Content-Type: application/json" \
+  -d '{"value": {"status": "active"}}'
+curl -sk https://localhost:7772/api/v1/records/agents/test/state  # ← replicated!
+
+# Run the full 29-test E2E suite
+bash tests/e2e-cluster.sh
+```
+
+### Try It
+
+```bash
+# Health check (TLS enabled by default)
+curl -sk https://localhost:7777/api/v1/health
+
+# Or trust the auto-generated CA for verified HTTPS:
+curl --cacert akasha-data/tls/ca.pem https://localhost:7777/api/v1/health
+
+# Write agent state
+curl -sk -X POST https://localhost:7777/api/v1/records/agents/planner-01/state \
+  -H "Content-Type: application/json" \
+  -d '{"value": {"status": "processing", "task": "data-pipeline"}}'
+
+# Read it back
+curl -sk https://localhost:7777/api/v1/records/agents/planner-01/state
+
+# Query all agents
+curl -sk "https://localhost:7777/api/v1/query?pattern=agents/*/state"
+
+# Deposit a pheromone (stigmergy)
+curl -sk -X POST https://localhost:7777/api/v1/pheromones \
+  -H "Content-Type: application/json" \
+  -d '{"trail": "tasks/enrichment", "signal_type": "success", "emitter": "agent-01", "intensity": 1.0}'
+
+# Full system tree
+curl -sk https://localhost:7777/api/v1/tree
+
+# Prometheus metrics
+curl -sk https://localhost:7777/metrics
+
+# Cognitive Fabric endpoints
+curl -sk https://localhost:7777/api/v1/nidra/status
+curl -sk https://localhost:7777/api/v1/pheromones
+curl -sk https://localhost:7777/api/v1/memory/layers
+
+# Dashboard (open in browser)
+open https://localhost:7777/dashboard
+```
+
+## SDKs
+
+### Python SDK
+
+```bash
+pip install -e sdks/python
+```
+
+```python
+from akasha import AkashaClient, MemoryLayer, SignalType
+
+with AkashaClient("localhost:50051") as client:
+    # Write state — inscribe into the Records
+    client.put("agents/planner/state", {
+        "status": "processing",
+        "task": "generate-report",
+        "progress": 0.6,
+    })
+
+    # Read another agent's state — instant awareness
+    worker = client.get("agents/worker-01/state")
+
+    # Stigmergy — deposit and sense pheromones
+    client.deposit_pheromone(
+        "pipelines/data-enrichment",
+        signal_type=SignalType.DISCOVERY,
+        emitter="planner-01",
+    )
+
+    # Cognitive Fabric — write to memory layers
+    client.write_memory(
+        MemoryLayer.SEMANTIC,
+        "workflows/enrichment-patterns",
+        {"pattern": "batch_enrichment", "confidence": 0.78},
+    )
+
+    # Query all agents — stigmergic sensing
+    for record in client.query("agents/*/state"):
+        print(f"{record.path}: {record.value}")
+
+    # Real-time subscriptions — the fabric speaks
+    for event in client.subscribe("agents/**"):
+        print(f"[{event.kind}] {event.path}")
+```
+
+Also includes **async client** (asyncio/LangGraph), **HTTP client**, and **high-level convenience methods**.
+See [Python SDK docs](sdks/python/README.md).
+
+### Node.js SDK
+
+```bash
+cd sdks/node && npm install && npm run build
+```
+
+```typescript
+import { AkashaClient } from '@akasha/client';
+
+const client = new AkashaClient({ address: 'localhost:50051' });
+
+await client.put('agents/orchestrator/state', {
+  status: 'coordinating',
+  task: 'pipeline-execution',
+});
+
+const worker = await client.get('agents/worker-01/state');
+
+for await (const event of client.subscribe('agents/**')) {
+  console.log(`[${event.kind}] ${event.path}`);
+}
+```
+
+Also includes **HTTP client** with WebSocket subscriptions. See [Node.js SDK docs](sdks/node/README.md).
+
+## Configuration
+
+Create an `akasha.toml` file (optional — sensible defaults used otherwise):
+
+```toml
+[server]
+grpc_addr = "0.0.0.0:50051"
+http_addr = "0.0.0.0:7777"
+name = "akasha"
+
+[persistence]
+enabled = true
+data_dir = "./akasha-data"
+
+[ttl]
+sweep_interval_secs = 10
+
+[nidra]
+enabled = true
+sweep_interval_secs = 300          # 5 min between sweeps
+consolidation_every_n_sweeps = 12  # Deep consolidation every ~1 hour
+evaporation_threshold = 0.01      # Pheromone evaporation threshold
+max_episodic_per_topic = 100       # Max episodic records before consolidation
+
+[elasticsearch]
+enabled = false
+url = "http://localhost:9200"
+index_prefix = "akasha"
+batch_size = 1000
+flush_interval_secs = 5
+
+[llm]
+enabled = false
+provider = "ollama"
+endpoint = "http://localhost:11434/api/generate"
+model = "llama3.2"
+
+[auth]
+enabled = true                       # Require authentication for all API requests
+# jwt_secret = ""                    # Auto-generated if empty
+# jwt_lifetime_hours = 24            # JWT session lifetime
+# Default user: akasha/akasha (created on first boot — change immediately!)
+
+# license_path = "license.json"
+```
+
+### Enterprise Cluster Configuration
+
+Each node in the cluster needs a `[cluster]` section:
+
+```toml
+[cluster]
+enabled = true
+node_id = "akasha-01"              # Unique per node
+bind_addr = "0.0.0.0:7946"         # SWIM gossip port (UDP)
+advertise_addr = "akasha-01:7946"  # Reachable address for peers
+seeds = ["akasha-02:7946", "akasha-03:7946"]  # Bootstrap peers
+cluster_id = "akasha-enterprise"   # Shared cluster identifier
+
+[auth]
+enabled = true                     # Recommended for production clusters
+
+[tls]
+enabled = true                     # mTLS for inter-node + client
+dns_suffix = "sslip.io"            # Auto-cert domain suffix
+```
+
+## API Reference
+
+### REST Endpoints (HTTP :7777)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/health` | Health check |
+| `POST` | `/api/v1/records/{path}` | Write a record |
+| `GET` | `/api/v1/records/{path}` | Read a record |
+| `DELETE` | `/api/v1/records/{path}` | Delete a record |
+| `GET` | `/api/v1/query?pattern=...` | Glob query |
+| `GET` | `/api/v1/agents` | List registered agents |
+| `GET` | `/api/v1/tree` | Full state tree |
+| `GET` | `/api/v1/metrics` | Server metrics |
+| `GET` | `/api/v1/nidra/status` | Last Nidra consolidation report |
+| `GET` | `/api/v1/pheromones` | Active pheromone trails |
+| `GET` | `/api/v1/memory/layers` | Memory layer record counts |
+| `GET` | `/api/v1/cluster/nodes` | Cluster node topology |
+| `GET` | `/api/v1/cluster/sync` | CRDT sync status |
+| `GET` | `/api/v1/cluster/raft` | Raft consensus status |
+| `GET` | `/dashboard/` | 📊 Enterprise Dashboard SPA |
+| `WS` | `/api/v1/stream?pattern=...` | WebSocket event stream |
+| | | |
+| **Auth** | | *Public (no auth required)* |
+| `POST` | `/api/v1/auth/login` | Login → JWT token |
+| `GET` | `/api/v1/auth/status` | Check if auth is enabled |
+| `GET` | `/api/v1/auth/me` | Current user identity |
+| `POST` | `/api/v1/auth/change-password` | Change own password |
+| | | |
+| **Admin** | | *Requires Admin role* |
+| `GET` | `/api/v1/admin/users` | List users |
+| `POST` | `/api/v1/admin/users` | Create user |
+| `PUT` | `/api/v1/admin/users/:username` | Update user (role/password) |
+| `DELETE` | `/api/v1/admin/users/:username` | Delete user |
+| `GET` | `/api/v1/admin/keys` | List API keys |
+| `POST` | `/api/v1/admin/keys` | Create API key (returns key once) |
+| `DELETE` | `/api/v1/admin/keys/:id` | Revoke API key |
+
+### gRPC Service (Port :50051)
+
+| RPC | Description |
+|-----|-------------|
+| `Put` | Write a record |
+| `Get` | Read a record |
+| `Delete` | Delete a record |
+| `Query` | Glob pattern query with tag filters |
+| `ListPaths` | List paths under prefix |
+| `Subscribe` | Server-streaming event subscription |
+| `RegisterAgent` | Register an agent |
+| `Heartbeat` | Agent heartbeat |
+| `GetMetrics` | Server metrics |
+
+## Performance
 
 - **Sub-millisecond** state access via DashMap (lock-free concurrent reads)
-- **MessagePack** serialization (30-50% smaller than JSON)
+- **MessagePack** internal serialization (30-50% smaller than JSON)
 - **Zero-copy** gRPC for binary data
+- **Broadcast channels** for fan-out event delivery (no per-subscriber overhead)
 - **RocksDB** WAL with LZ4 compression for durable persistence
 - **Exponential decay** pheromones computed on-read (no background timer per pheromone)
 
----
-
-## 📦 Downloads
-
-| Platform | Architecture | |
-|----------|-------------|---|
-| Linux | x86_64 (amd64) | `akasha-v1.0.6-linux-amd64.tar.gz` |
-| Linux | aarch64 (arm64) | `akasha-v1.0.6-linux-arm64.tar.gz` |
-| macOS | Apple Silicon | `akasha-v1.0.6-darwin-arm64.tar.gz` |
-| Docker | Multi-arch | `ghcr.io/ocuil/akasha:1.0.6` |
-
-See [Releases](https://github.com/ocuil/akasha-public/releases) for downloads.
-
----
-
-## 📊 Project Status
+## Project Status
 
 | Component | Status |
 |-----------|--------|
-| Core Engine (CRUD, Query, Subscribe) | ✅ Production |
-| Stigmergy (Pheromones) | ✅ Production |
-| Cognitive Fabric (4-layer memory) | ✅ Production |
-| Nidra Consolidation Engine | ✅ Production |
-| Python & Node.js SDKs | ✅ Production |
-| Authentication (JWT + API Keys) | ✅ Production |
-| Dashboard SPA (React) | ✅ Embedded in binary |
-| CRDT Replication (HLC + LWW) | ✅ 29/29 E2E tests |
-| SWIM Gossip + Raft Consensus | ✅ 3-node HA |
-| mTLS + HMAC Inter-Node | ✅ Encrypted |
-| Test Suite | ✅ 148 tests passing |
+| Core Engine (`akasha-core`) | ✅ Production-ready |
+| Stigmergy / Pheromones | ✅ Production-ready |
+| Cognitive Fabric (4-layer memory) | ✅ Production-ready |
+| Nidra Consolidation Engine | ✅ Production-ready |
+| gRPC Server | ✅ Production-ready |
+| REST/WebSocket Server | ✅ Production-ready |
+| Python SDK | ✅ Production-ready |
+| Node.js SDK | ✅ Production-ready |
+| Elasticsearch Forwarder | ✅ Implemented (Enterprise) |
+| LLM Consolidation Hooks | ✅ Implemented (Enterprise) |
+| License Key System | ✅ Ed25519 cryptographic |
+| **Authentication (JWT + API Keys)** | ✅ **Argon2id + HMAC-SHA256** |
+| **Dashboard SPA (React)** | ✅ **Embedded in binary (rust-embed)** |
+| **CLI Key Generation** | ✅ **`akasha-license api-key`** |
+| **CRDT Replication (HLC + LWW)** | ✅ **29/29 E2E tests** |
+| **SWIM Gossip Discovery** | ✅ **3-node cluster** |
+| **Anti-Entropy Reconciliation** | ✅ **Full-state recovery** |
+| **GossipRaft Consensus** | ✅ **Leader election + failover** |
+| **mTLS + HMAC Inter-Node** | ✅ **Encrypted cluster** |
+| **Distributed Nidra** | ✅ **Single-leader consolidation** |
+| Test Suite | ✅ 148 tests passing (unit + integration) |
+
+## How Akasha Compares
+
+Akasha, [Mem0](https://github.com/mem0ai/mem0), and [Letta](https://github.com/letta-ai/letta) all solve **agent memory** — but with fundamentally different approaches:
+
+| | **Akasha** | **Mem0** | **Letta (MemGPT)** |
+|:---|:---:|:---:|:---:|
+| **Philosophy** | Memory as infrastructure | Memory as a service | Memory as OS |
+| **Core idea** | Shared cognitive fabric — agents coordinate through persistent stigmergy | Pluggable memory layer — add recall to any agent | Agent runtime — the agent manages its own memory |
+| | | | |
+| **Write latency** | **< 1 ms** (direct data op) | ~1,400 ms (requires LLM) | ~500–2,000 ms (LLM tool call) |
+| **Read latency** | **< 1 ms** | ~200–500 ms (vector search) | ~200–500 ms (vector search) |
+| **LLM calls per memory op** | **0** | 2 (extract + dedup) | 1+ (agent tool call) |
+| **Throughput** | **2,237 ops/sec** | ~1–5 ops/sec (LLM-bound) | ~1–5 ops/sec (LLM-bound) |
+| | | | |
+| **Multi-agent coordination** | ✅ Native (stigmergy) | ❌ Single-agent | ❌ Single-agent |
+| **Memory tiers** | ✅ Working → Episodic → Semantic → Procedural | ⚠️ Flat | ✅ Core → Recall → Archival |
+| **Auto-consolidation** | ✅ Nidra (time-based, configurable) | ✅ LLM-driven (on every write) | ⚠️ Agent-driven (unreliable) |
+| **Memory decay** | ✅ Pheromone evaporation | ❌ Manual deletion | ❌ Manual |
+| **Cross-agent memory** | ✅ Shared paths + pheromones | ❌ Per-user isolation | ❌ Per-agent isolation |
+| **Self-organizing** | ✅ Stigmergy (emergent) | ❌ Static structure | ⚠️ Agent decides |
+| | | | |
+| **Clustering / HA** | ✅ 3+ node CRDT (Enterprise) | ❌ | ❌ |
+| **Auth** | ✅ JWT + API Keys + RBAC | ⚠️ API key only | ⚠️ Basic |
+| **Dashboard** | ✅ React SPA with CRUD | ❌ | ⚠️ Basic UI |
+| **gRPC** | ✅ | ❌ | ❌ |
+| **Persistence** | ✅ RocksDB (WAL, LSM) | External (Qdrant, etc.) | Postgres |
+| **LLM dependency** | **Optional** | **Critical** | **Critical** |
+| | | | |
+| **Best for** | Multi-agent coordination at scale | Single-user personalization | Stateful single-agent reasoning |
+| **License** | ASL-1.0 (source-available) | Apache-2.0 | Apache-2.0 |
+
+**The key insight:**
+- **Mem0** asks: *"What facts should I remember about this user?"*
+- **Letta** asks: *"How should the agent manage its own context window?"*
+- **Akasha** asks: *"How should a community of agents share and build knowledge?"*
+
+> These systems can also be **complementary**: Akasha serves as the coordination backbone while Mem0 handles user-facing personalization and Letta manages complex single-agent reasoning.
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [User Guide](USER_GUIDE.md) | Complete guide: installation, memory architecture, API reference, system prompts |
+| [User Guide](USER_GUIDE.md) | Complete guide: installation, memory architecture, API, system prompts |
 | [**Agent Integrations**](INTEGRATIONS.md) | **Connect Pi, LangGraph, CrewAI, AutoGen, OpenAI SDK, Google ADK, and more** |
-| [Installation Guide](installation.md) | Standalone, cluster, Docker, and Kubernetes deployment |
-| [Configuration Reference](configuration.md) | Complete TOML configuration reference |
-| [Authentication & Security](authentication.md) | Users, JWT tokens, API keys, and RBAC |
-| [Python SDK Guide](sdk-python.md) | Full Python SDK tutorial with examples |
-| [Node.js SDK Guide](sdk-nodejs.md) | Full Node.js/TypeScript SDK tutorial |
-| [Agent Patterns](agent-patterns.md) | Stigmergy, memory fabric, and pheromone patterns |
 | [Agent Skills](skills/) | Pre-built skills (agentskills.io standard) for agent onboarding |
-| [Cluster Operations](cluster-operations.md) | Scaling, failover, monitoring, and anti-entropy |
-| [REST API Reference](api-reference.md) | Complete HTTP/WebSocket API reference |
-| [Dashboard Guide](dashboard.md) | Web dashboard usage and features |
+| [Python SDK](sdks/python/README.md) | Python SDK with gRPC + HTTP + async support |
+| [Node.js SDK](sdks/node/README.md) | TypeScript SDK with gRPC + HTTP + WebSocket |
 
----
-
-## 💰 License Tiers
-
-| Feature | Community | Enterprise |
-|---------|:---------:|:----------:|
-| Core Engine + Stigmergy + Cognitive Fabric | ✅ | ✅ |
-| Python & Node.js SDKs | ✅ | ✅ |
-| Nidra Basic (rule-based) | ✅ | ✅ |
-| Web Dashboard | — | ✅ |
-| Clustering (3+ node HA) | — | ✅ |
-| Elasticsearch Forwarder | — | ✅ |
-| LLM Consolidation Hooks | — | ✅ |
-| Priority Support | — | ✅ |
-
-Licenses are **cryptographically signed (Ed25519)** and validated **entirely offline** — zero phone-home, zero telemetry, zero tracking.
-
-### How to Get a License
-
-**Community** — no license needed. Install and run, features are available immediately.
-
-**Enterprise** — follow these steps:
+## Project Structure
 
 ```
-1. Install Akasha and start the server
-   → A unique installation fingerprint is generated automatically
-
-2. Retrieve your fingerprint:
-   curl -sk https://your-server:7777/api/v1/license/fingerprint
-
-3. Send your fingerprint to the Akasha team
-   → Contact: dev@alejandrosl.com
-
-4. Receive your license.json file
-
-5. Place it in your config directory and restart:
-   cp license.json /path/to/akasha/
-   # Update akasha.toml: license_path = "license.json"
-   akasha akasha.toml
-   # → 🔑 License validated ✓
+akasha/
+├── akasha-core/               # Core engine crate
+│   └── src/
+│       ├── store.rs           # DashMap store + put_replicated()
+│       ├── record.rs          # Versioned records with TTL, tags
+│       ├── event.rs           # Event pub/sub system
+│       ├── query.rs           # Glob pattern matching engine
+│       ├── persistence.rs     # PersistenceBackend trait + RocksDB
+│       ├── auth.rs            # 🔐 Auth — JWT, API keys, RBAC, Argon2id
+│       ├── ttl.rs             # Background TTL reaper
+│       ├── pheromone.rs       # 🐜 Stigmergy — pheromone traces with decay
+│       ├── memory.rs          # 🧠 Cognitive Fabric — 4-layer hierarchy
+│       ├── nidra.rs           # 🧘 Nidra — sleep-like consolidation
+│       ├── consolidation.rs   # 🔌 Pluggable consolidation hooks (Rule/LLM)
+│       ├── elastic.rs         # 📊 Elasticsearch async forwarder
+│       ├── license.rs         # 🔑 Ed25519 license system
+│       └── cluster/           # 🌐 Distributed cluster (Enterprise)
+│           ├── membership.rs  #   SWIM membership (join/leave/suspect)
+│           ├── gossip.rs      #   UDP gossip transport + HMAC auth
+│           ├── gossip_raft.rs #   GossipRaft consensus (leader election)
+│           ├── sync.rs        #   CrdtState (HLC, LWW, anti-entropy)
+│           ├── crdt.rs        #   Delta tracker + batch chunking
+│           ├── node.rs        #   NodeInfo, NodeStatus, NodeRole
+│           └── control.rs     #   Control plane operations
+├── akasha-server/             # Gateway crate
+│   └── src/
+│       ├── main.rs            # Server bootstrap + cluster wiring
+│       ├── config.rs          # TOML configuration
+│       ├── grpc/              # gRPC service (tonic)
+│       └── http/
+│           ├── routes.rs      # REST API routes (axum)
+│           ├── auth_routes.rs # 🔐 Auth + Admin API endpoints
+│           ├── middleware.rs   # 🔐 JWT/API key auth middleware
+│           └── ws.rs          # WebSocket event stream
+├── akasha-tools/              # 🔑 License + API key CLI tool
+├── dashboard-spa/             # 📊 React SPA (embedded in binary)
+│   ├── src/
+│   │   ├── App.tsx            # Router + auth check
+│   │   ├── api/client.ts      # Fetch wrapper with JWT
+│   │   ├── components/        # Layout, sidebar, modals
+│   │   └── pages/             # Dashboard, Explorer, Admin
+│   └── dist/                  # Built assets (rust-embed target)
+├── sdks/
+│   ├── python/                # Python SDK (gRPC + HTTP, sync + async)
+│   └── node/                  # Node.js SDK (TypeScript, gRPC + HTTP)
+├── tests/
+│   ├── e2e_agents.py          # 3-agent E2E simulation test
+│   └── e2e-cluster.sh         # 🧪 29-test distributed cluster E2E
+├── deploy/cluster/            # Per-node cluster configs
+├── docker-compose.yml         # 3-node Enterprise cluster
+├── Dockerfile                 # 3-stage: Node→Rust→Runtime
+├── akasha.toml                # Default standalone configuration
+├── LICENSE                    # Akasha Source License 1.0
+└── README.md                  # You are here
 ```
 
-Each license is **bound to your specific installation** — it cannot be transferred to a different server. Licenses are validated offline with no network dependency.
+## License Tiers
+
+| Feature | Community | Basic | Enterprise |
+|---------|:---------:|:-----:|:----------:|
+| Core Engine (CRUD, Query, Subscribe) | ✅ | ✅ | ✅ |
+| Agent Registration & Heartbeat | ✅ | ✅ | ✅ |
+| Stigmergy (Pheromones) | ✅ | ✅ | ✅ |
+| Cognitive Fabric (4 layers) | ✅ | ✅ | ✅ |
+| Nidra Basic (rule-based) | ✅ | ✅ | ✅ |
+| Python & Node.js SDKs | ✅ | ✅ | ✅ |
+| Web Dashboard | ❌ | ✅ | ✅ |
+| Clustering (HA / FT / DR) | ❌ | ❌ | ✅ (3+ nodes) |
+| Elasticsearch Forwarder | ❌ | ❌ | ✅ |
+| Nidra LLM Hooks | ❌ | ❌ | ✅ |
+| Custom Consolidation Hooks | ❌ | ❌ | ✅ |
+| Max Agents | 5 | 100 | ♾️ |
+| Max Records | 10K | 1M | ♾️ |
+| Max Pheromone Trails | 100 | 10K | ♾️ |
+| Max Nodes | 1 | 1 | Licensed (3+) |
+| License Required | No (auto-demo) | Yes (registered) | Yes (registered) |
+| Cluster Binding | None | Installation fingerprint | Installation fingerprint |
+| Priority Support | ❌ | ❌ | ✅ |
 
 ---
 
-## 🤝 Community
+## Licensing Operations — Full Guide
 
-- **Issues**: [Report bugs and request features](https://github.com/ocuil/akasha-public/issues)
-- **Releases**: [Download latest binaries](https://github.com/ocuil/akasha-public/releases)
-- **Author**: [Alejandro Sánchez Losa](https://alejandrosl.com) · [LinkedIn](https://www.linkedin.com/in/alejandrosl/)
+### Security Model
 
----
+Licenses are **Ed25519 cryptographically signed** and validated **offline** (zero phone-home).
 
-## 📄 License
+Since v2, licenses are bound to a **installation-specific fingerprint** composed of:
+
+```
+fingerprint = SHA-256(cluster_id + installation_id + install_timestamp)
+                 ↑                    ↑                    ↑
+           user-defined       UUID v4 (auto)         first boot epoch
+```
+
+- `cluster_id`: Defined in `akasha.toml` by the user
+- `installation_id`: Random UUID generated once on first boot, saved to `data/cluster.identity`
+- `install_timestamp`: Unix epoch of first boot
+
+This ensures the **same cluster_id on a different server produces a different fingerprint**.
+
+### Step 0: Generate Keypair (one-time)
+
+```bash
+akasha-license keygen --output keys/
+# → keys/akasha.key  (PRIVATE — never share)
+# → keys/akasha.pub  (PUBLIC  — embedded in binary)
+```
+
+### Step 1: Client Installs & Gets Fingerprint
+
+The client installs Akasha and starts the server. On first boot, a `cluster.identity` file is generated:
+
+```bash
+# Client runs:
+akasha akasha.toml
+# 🔑 New cluster identity generated — share this fingerprint for licensing
+# → data/cluster.identity created
+
+# Client retrieves fingerprint:
+curl -sk https://localhost:7777/api/v1/license/fingerprint
+```
+
+Response:
+```json
+{
+  "fingerprint": "a7f3b2e1d4c5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+  "cluster_id": "acme-production",
+  "installation_id": "e9c14a2b-7f3d-4e5a-8b1c-9d0e2f3a4b5c",
+  "installed_at": 1712345678,
+  "license_tier": "Community",
+  "license_valid": true
+}
+```
+
+The client sends you the `fingerprint` value.
+
+### Step 2: Issue License (Admin)
+
+```bash
+# Enterprise license (recommended: use --fingerprint from server)
+akasha-license issue \
+  --customer "Acme Corp" \
+  --tier enterprise \
+  --fingerprint "a7f3b2e1d4c5f6a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2" \
+  --max-nodes 5 \
+  --days 365 \
+  --private-key keys/akasha.key \
+  --output acme-license.json
+
+# Basic license
+akasha-license issue \
+  --customer "Startup Inc" \
+  --tier basic \
+  --fingerprint "<fingerprint>" \
+  --days 365 \
+  --private-key keys/akasha.key \
+  --output startup-license.json
+
+# Legacy mode (v1 — cluster-id only, NOT recommended)
+akasha-license issue \
+  --customer "Legacy Corp" \
+  --tier basic \
+  --cluster-id "legacy-prod" \
+  --private-key keys/akasha.key \
+  --output legacy-license.json
+```
+
+### Step 3: Client Activates License
+
+```bash
+# Client copies license.json to their server
+cp license.json /path/to/akasha/license.json
+
+# Updates akasha.toml:
+# [auth]
+# license_path = "license.json"
+
+# Restarts:
+akasha akasha.toml
+# 🔑 License validated: Enterprise (Acme Corp, 5 nodes)
+```
+
+### Step 4: Verify License (Admin)
+
+```bash
+akasha-license verify \
+  --license acme-license.json \
+  --public-key keys/akasha.pub
+# ✅ License is VALID
+```
+
+### Full Flow Diagram
+
+```
+CLIENT                                     ADMIN (you)
+──────                                     ───────────
+1. Install Akasha
+2. akasha akasha.toml (first boot)
+   → generates data/cluster.identity
+   → prints fingerprint
+   
+3. curl .../api/v1/license/fingerprint
+   → gets fingerprint JSON
+   
+4. Sends fingerprint to admin ─────────── 5. akasha-license issue \
+                                              --fingerprint "..." \
+                                              --customer "..." \
+                                              --tier enterprise \
+                                              --max-nodes 5 \
+                                              --private-key keys/akasha.key
+                                              
+6. Receives license.json ◄──────────────── 7. Sends license.json
+
+8. cp license.json → config dir
+9. Restart: 🔑 License validated ✓
+
+DONE — zero phone-home, fully offline
+```
+
+### Key Paths
+
+| File | Purpose |
+|------|---------|
+| `keys/akasha.key` | Ed25519 private signing key (**NEVER SHARE**) |
+| `keys/akasha.pub` | Ed25519 public verification key (embedded in binary) |
+| `data/cluster.identity` | Installation fingerprint (auto-generated, immutable) |
+| `license.json` | Signed license file (given to client) |
+| API: `/api/v1/license/status` | Live expiry status (JSON) |
+| API: `/api/v1/license/fingerprint` | Installation fingerprint (JSON) |
+
+## License
 
 **[Akasha Source License 1.0 (ASL-1.0)](LICENSE)**
 
-- ✅ You **may** use, copy, distribute, and modify freely
-- ✅ You **may** use it in your own products and services
-- ❌ You may **not** offer as a hosted/managed service
+Copyright © 2026 [Alejandro Sánchez Losa](https://alejandrosl.com) · [GitHub](https://github.com/ocuil) · [LinkedIn](https://www.linkedin.com/in/alejandrosl/)
+
+You may use, copy, distribute, and modify this software freely, subject to the following limitations:
+
+- ❌ You may **not** offer Akasha as a hosted/managed service
 - ❌ You may **not** circumvent license key mechanisms
+- ✅ You **may** use it in your own products and services
+- ✅ You **may** modify and create derivative works
+- ✅ You **may** distribute copies (with license)
 
 ---
 
