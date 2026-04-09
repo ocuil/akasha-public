@@ -32,7 +32,7 @@ Akasha URL:      https://your-akasha-host:7777
 Auth:            Authorization: Bearer <token>  OR  Authorization: Bearer ak_<api-key>
 API Prefix:      /api/v1
 WebSocket:       wss://your-akasha-host:7777/api/v1/stream?pattern=**
-Python SDK:      pip install git+https://github.com/ocuil/akasha-public.git#subdirectory=sdks/python
+Python SDK:      pip install akasha-client
 Content-Type:    application/json
 TLS:             Required (self-signed certs supported)
 ```

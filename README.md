@@ -14,8 +14,9 @@
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.8-purple.svg)](Cargo.toml)
 [![Docker](https://img.shields.io/docker/v/alejandrosl/akasha?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/alejandrosl/akasha)
+[![PyPI](https://img.shields.io/pypi/v/akasha-client?color=blue&label=PyPI)](https://pypi.org/project/akasha-client/)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
-[![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#project-status)
+[![Tests](https://img.shields.io/badge/Tests-163_passing-success.svg)](#project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
 [![Rust](https://img.shields.io/badge/Engine-Rust-orange.svg)](https://www.rust-lang.org/)
 [![gRPC](https://img.shields.io/badge/Protocol-gRPC-green.svg)](https://grpc.io/)
@@ -370,7 +371,7 @@ open https://localhost:7777/dashboard
 ### Python SDK
 
 ```bash
-pip install -e sdks/python
+pip install akasha-client
 ```
 
 ```python
@@ -411,7 +412,7 @@ with AkashaClient("localhost:50051") as client:
 ```
 
 Also includes **async client** (asyncio/LangGraph), **HTTP client**, and **high-level convenience methods**.
-See [Python SDK docs](sdks/python/README.md).
+See [Python SDK docs](sdks/python/README.md) | [PyPI](https://pypi.org/project/akasha-client/).
 
 ### Node.js SDK
 

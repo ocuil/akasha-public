@@ -2,6 +2,29 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.0.9] — Unreleased
+
+### Added
+- **15 HTTP integration tests**: Full coverage for health, CRUD, CAS, query, memory layers, agents, license, and middleware headers (`akasha-server/tests/http_integration.rs`)
+- **Server library crate**: `akasha-server` now exposes `lib.rs` for integration testing alongside the binary
+- **CI release workflow**: GitHub Actions pipeline builds 4 targets (linux-amd64, linux-arm64, darwin-amd64, darwin-arm64) on tag push (`.github/workflows/release.yml`)
+- **Docker Hub distribution**: Official image at `alejandrosl/akasha` with full overview page
+- **Python SDK on PyPI**: `pip install akasha-client` — now publicly available at [pypi.org/project/akasha-client](https://pypi.org/project/akasha-client/)
+- **SDK: CAS support**: New `put_cas()` method with `CasConflictError` exception for optimistic concurrency
+- **SDK: Authentication**: API key (`X-API-Key`) and JWT (`Bearer`) token support
+- **SDK: TLS toggle**: `verify_ssl=False` for self-signed certificate environments
+- Docker Hub badge + PyPI badge in README
+
+### Changed
+- Docker image references updated from `ghcr.io/ocuil/akasha` to `alejandrosl/akasha` (README, installation docs, Helm values)
+- Python SDK install changed from `pip install -e sdks/python` to `pip install akasha-client`
+
+### Fixed
+- Unused import warning in `telemetry.rs` (`info` removed after downgrade to `debug`)
+
+### Metrics
+- Total tests: **163** (145 unit + 15 integration + 3 doc tests), 0 failures
+
 ## [1.0.8] — 2026-04-09
 
 ### Added
