@@ -2,6 +2,20 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.0.8] — 2026-04-09
+
+### Added
+- **CAS (Compare-And-Swap)**: Optimistic concurrency control via `If-Match` header on PUT. Returns `409 Conflict` with current record on version mismatch. Fully backwards-compatible — only activates when client sends `If-Match`.
+- **ETag header**: GET responses include `ETag` with the record version for client-side caching and CAS workflows.
+- **Graceful shutdown improvements**: Node transitions `Alive → Leaving → Left` during shutdown. Pending CRDT deltas are flushed to peers before Leave broadcast.
+- `CasError` enum in `akasha-core::store` for typed CAS error handling.
+- `NodeStatus::Leaving` variant for pre-shutdown signaling.
+- `ClusterMembership::set_local_status()` method.
+
+### Changed
+- Telemetry initialization log downgraded from INFO to DEBUG (endpoint details no longer visible in production logs).
+- PUT error responses now return structured JSON bodies (`{"error": "..."}`) instead of plain text strings.
+
 ## [1.0.7] — 2026-04-08
 
 ### Fixed

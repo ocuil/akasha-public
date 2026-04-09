@@ -12,7 +12,7 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.7-purple.svg)](Cargo.toml)
+[![Version](https://img.shields.io/badge/Version-1.0.8-purple.svg)](Cargo.toml)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
 [![Tests](https://img.shields.io/badge/Tests-148_passing-success.svg)](#project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
