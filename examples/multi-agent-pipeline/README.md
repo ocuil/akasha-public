@@ -2,6 +2,10 @@
 
 > Three autonomous agents coordinate through **pheromone trails** in Akasha's shared cognitive fabric — without ever talking to each other.
 
+<div align="center">
+<img src="demo-screenshot.png" width="700" alt="Demo output showing three agents coordinating through pheromone trails">
+</div>
+
 This demo showcases **stigmergy** — the same coordination mechanism used by ant colonies — applied to a data processing pipeline. Each agent operates independently, reading and writing to the shared memory fabric. Coordination emerges naturally from the pheromone signals left in the environment.
 
 ## The Pipeline
