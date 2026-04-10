@@ -1,0 +1,110 @@
+site_name: Akasha Documentation
+site_url: https://ocuil.github.io/akasha-public
+site_description: The shared cognitive fabric for intelligent agent systems — documentation, guides, and API reference.
+site_author: Alejandro Sánchez Losa
+
+repo_url: https://github.com/ocuil/akasha-public
+repo_name: ocuil/akasha-public
+
+copyright: "&copy; 2024-2026 Alejandro Sánchez Losa — ASL-1.0 License"
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/memory
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quickstart.md
+    - Installation: getting-started/installation.md
+    - Configuration: getting-started/configuration.md
+  - Concepts:
+    - Architecture: concepts/architecture.md
+    - Memory Layers: concepts/memory-layers.md
+    - Pheromones: concepts/pheromones.md
+    - Compare-And-Swap: concepts/cas.md
+  - SDKs:
+    - Python: sdks/python.md
+    - Node.js: sdks/nodejs.md
+    - REST API: sdks/rest-api.md
+  - Deployment:
+    - Docker: deployment/docker.md
+    - Clustering: deployment/clustering.md
+    - Monitoring: deployment/monitoring.md
+  - Examples:
+    - LangGraph Pipeline: examples/langgraph.md
+    - Interactive Playground: examples/playground.md
+  - Vision: vision.md
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - tables
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ocuil/akasha-public
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/alejandrosl/akasha
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/akasha-client/
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/akasha-memory

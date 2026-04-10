@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akasha API — Documentation</title>
+    <meta name="description" content="Interactive API documentation for Akasha — the shared cognitive fabric for intelligent agent systems.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #161622 !important;
+        }
+
+        /* ── Content panel background ───────── */
+        .redoc-wrap {
+            background: #161622 !important;
+        }
+        .redoc-wrap > div:nth-child(2) {
+            background: #1c1c2e !important;
+        }
+
+        /* ── Text — high contrast on dark bg ── */
+        .redoc-wrap h1,
+        .redoc-wrap h2 {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+        .redoc-wrap h3,
+        .redoc-wrap h4,
+        .redoc-wrap h5 {
+            color: #e8e8f5 !important;
+            font-weight: 600 !important;
+        }
+        .redoc-wrap p,
+        .redoc-wrap li {
+            color: #b8b8d0 !important;
+        }
+        .redoc-wrap span {
+            color: #c0c0d5 !important;
+        }
+        .redoc-wrap label {
+            color: #9898b5 !important;
+        }
+
+        /* ── Sections — clear boundaries ────── */
+        .redoc-wrap h2 {
+            padding-top: 36px !important;
+            margin-top: 20px !important;
+            border-top: 1px solid #2e2e45 !important;
+        }
+        .redoc-wrap h1 + div > h2:first-of-type,
+        .redoc-wrap > div:nth-child(2) > div:first-child h2 {
+            border-top: none !important;
+        }
+
+        /* ── Schema / table rows ───────────── */
+        .redoc-wrap table {
+            background: transparent !important;
+        }
+        .redoc-wrap tr {
+            border-color: #2a2a40 !important;
+        }
+        .redoc-wrap td,
+        .redoc-wrap th {
+            border-color: #2a2a40 !important;
+            color: #c0c0d5 !important;
+        }
+        .redoc-wrap th {
+            color: #9898b0 !important;
+            text-transform: uppercase;
+            font-size: 11px !important;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Field names in schemas ─────────── */
+        .redoc-wrap [kind="field"] span:first-child,
+        .redoc-wrap .property-name {
+            color: #e0e0f0 !important;
+            font-family: 'JetBrains Mono', monospace !important;
+        }
+
+        /* ── Type badges ────────────────────── */
+        .redoc-wrap .type-title,
+        .redoc-wrap [class*="type-"] {
+            color: #81ecec !important;
+        }
+
+        /* ── "required" badge ───────────────── */
+        .redoc-wrap [class*="required"] {
+            color: #ff7675 !important;
+        }
+
+        /* ── Inline code ────────────────────── */
+        .redoc-wrap code {
+            background: #252540 !important;
+            color: #dfe6e9 !important;
+            padding: 2px 7px !important;
+            border-radius: 4px !important;
+            border: 1px solid #333350 !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 13px !important;
+        }
+
+        /* ── Response status bars ───────────── */
+        .redoc-wrap [class*="responses-inner"] {
+            background: rgba(108, 92, 231, 0.08) !important;
+            border: 1px solid #2e2e48 !important;
+            border-radius: 8px !important;
+        }
+
+        /* ── Links ──────────────────────────── */
+        .redoc-wrap a {
+            color: #a29bfe !important;
+        }
+        .redoc-wrap a:hover {
+            color: #c8c3ff !important;
+        }
+
+        /* ── Sidebar ────────────────────────── */
+        .redoc-wrap > div:first-child {
+            background: #111120 !important;
+            border-right: 1px solid #252540 !important;
+        }
+        .redoc-wrap > div:first-child * {
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        /* ── Right panel (code samples) ─────── */
+        .redoc-wrap > div:last-child {
+            background: #111118 !important;
+            border-left: 1px solid #252540 !important;
+        }
+
+        /* ── Buttons / tabs ─────────────────── */
+        .redoc-wrap button {
+            color: #a29bfe !important;
+        }
+        .redoc-wrap [class*="tab"] {
+            background: #1e1e32 !important;
+            border-color: #333350 !important;
+        }
+        .redoc-wrap [class*="tab"][class*="active"],
+        .redoc-wrap [class*="tabSuccess"] {
+            background: rgba(0, 184, 148, 0.15) !important;
+            border-color: #00b894 !important;
+        }
+
+        /* ── Dividers (horizontal rules) ────── */
+        .redoc-wrap hr {
+            border-color: #2a2a42 !important;
+        }
+
+        /* ── Auth section ───────────────────── */
+        .redoc-wrap [class*="security"] {
+            color: #b0b0c8 !important;
+        }
+
+        /* ── Scrollbar ──────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #151525; }
+        ::-webkit-scrollbar-thumb { background: #353550; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #454565; }
+
+        /* ── Download button ────────────────── */
+        .redoc-wrap [class*="download"] {
+            background: #252540 !important;
+            color: #b0b0c8 !important;
+            border: 1px solid #353555 !important;
+            border-radius: 6px !important;
+        }
+
+        /* ── Search input ───────────────────── */
+        .redoc-wrap input {
+            background: #1a1a2e !important;
+            border-color: #333350 !important;
+            color: #e0e0f0 !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="redoc-container"></div>
+
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script>
+        Redoc.init('./openapi.yaml', {
+            scrollYOffset: 0,
+            hideDownloadButton: false,
+            expandResponses: '200',
+            jsonSampleExpandLevel: 2,
+            sortOperationsAlphabetically: false,
+            nativeScrollbars: true,
+            theme: {
+                colors: {
+                    primary: { main: '#a29bfe' },
+                    success: { main: '#55efc4' },
+                    warning: { main: '#ffeaa7' },
+                    error: { main: '#fab1a0' },
+                    text: { primary: '#e0e0f0', secondary: '#9898b5' },
+                    border: { dark: '#2e2e48', light: '#252540' },
+                    http: {
+                        get: '#55efc4',
+                        post: '#a29bfe',
+                        put: '#ffeaa7',
+                        delete: '#fab1a0',
+                        patch: '#81ecec',
+                    },
+                },
+                schema: {
+                    nestedBackground: '#1a1a2e',
+                    typeNameColor: '#81ecec',
+                    typeTitleColor: '#e0e0f0',
+                    requireLabelColor: '#ff7675',
+                },
+                typography: {
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    fontSize: '15px',
+                    lineHeight: '1.6',
+                    headings: {
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: '700',
+                    },
+                    code: {
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: '13px',
+                        backgroundColor: '#252540',
+                        color: '#dfe6e9',
+                    },
+                    links: { color: '#a29bfe' },
+                },
+                sidebar: {
+                    backgroundColor: '#111120',
+                    textColor: '#8888a5',
+                    activeTextColor: '#ffffff',
+                    groupItems: {
+                        activeBackgroundColor: '#6c5ce7',
+                        activeTextColor: '#ffffff',
+                    },
+                    level1Items: {
+                        activeBackgroundColor: 'rgba(108, 92, 231, 0.2)',
+                        activeTextColor: '#e0e0f0',
+                    },
+                },
+                rightPanel: {
+                    backgroundColor: '#111118',
+                    textColor: '#c0c0d8',
+                },
+            },
+        }, document.getElementById('redoc-container'));
+    </script>
+</body>
+</html>
