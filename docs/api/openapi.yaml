@@ -73,7 +73,7 @@ paths:
               example:
                 status: ok
                 name: akasha
-                version: '1.0.8'
+                version: '1.0.9'
                 records: 475
                 pending_telemetry: false
                 cluster:
@@ -261,8 +261,8 @@ paths:
   /api/v1/metrics:
     get:
       tags: [Metrics]
-      summary: Application metrics
-      description: Returns internal application metrics (record count, uptime, connected agents).
+      summary: Application metrics (local node)
+      description: Returns internal application metrics for the responding node only.
       operationId: getMetrics
       responses:
         '200':
@@ -271,6 +271,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetricsResponse'
+
+  /api/v1/cluster/metrics:
+    get:
+      tags: [Metrics, Cluster]
+      summary: Aggregated cluster metrics
+      description: |
+        Queries every peer node's `/api/v1/metrics` endpoint internally and
+        returns aggregated totals plus a per-node breakdown. The responding node
+        fans out HTTPS requests to all healthy peers, forwarding the caller's
+        JWT for authentication. Falls back to local-only metrics if peers are
+        unreachable.
+      operationId: getClusterMetrics
+      responses:
+        '200':
+          description: Aggregated cluster metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterMetricsResponse'
+              example:
+                total_records: 601
+                uptime_seconds: 3600
+                connected_agents: 3
+                nodes_reporting: 3
+                nodes_total: 3
+                metrics:
+                  total_writes: 290
+                  total_reads: 443
+                  total_queries: 323
+                  total_deletes: 0
+                per_node:
+                  - node_id: akasha-01
+                    total_records: 601
+                    uptime_seconds: 3600
+                    connected_agents: 1
+                    metrics:
+                      total_writes: 288
+                      total_reads: 423
+                      total_queries: 300
+                      total_deletes: 0
+                  - node_id: akasha-02
+                    total_records: 601
+                    uptime_seconds: 3598
+                    connected_agents: 1
+                    metrics:
+                      total_writes: 1
+                      total_reads: 10
+                      total_queries: 12
+                      total_deletes: 0
 
   /api/v1/nidra/status:
     get:
@@ -999,6 +1048,63 @@ components:
           nullable: true
         revoked:
           type: boolean
+
+    ClusterMetricsResponse:
+      type: object
+      description: Aggregated metrics from all cluster nodes.
+      properties:
+        total_records:
+          type: integer
+          description: Total records on the responding node's store
+        uptime_seconds:
+          type: integer
+          description: Maximum uptime across all reporting nodes
+        connected_agents:
+          type: integer
+          description: Sum of connected agents across all nodes
+        nodes_reporting:
+          type: integer
+          description: Number of nodes that responded to the fan-out
+        nodes_total:
+          type: integer
+          description: Total known nodes in the cluster membership
+        metrics:
+          type: object
+          description: Aggregated counters (sum across all nodes)
+          properties:
+            total_writes:
+              type: integer
+            total_reads:
+              type: integer
+            total_queries:
+              type: integer
+            total_deletes:
+              type: integer
+        per_node:
+          type: array
+          description: Per-node metric breakdown
+          items:
+            type: object
+            properties:
+              node_id:
+                type: string
+              total_records:
+                type: integer
+              uptime_seconds:
+                type: integer
+              connected_agents:
+                type: integer
+              metrics:
+                type: object
+                properties:
+                  total_writes:
+                    type: integer
+                  total_reads:
+                    type: integer
+                  total_queries:
+                    type: integer
+                  total_deletes:
+                    type: integer
 
 security:
   - BearerAuth: []

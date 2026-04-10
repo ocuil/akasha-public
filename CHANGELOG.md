@@ -2,7 +2,7 @@
 
 All notable changes to Akasha are documented in this file.
 
-## [1.0.9] — Unreleased
+## [1.0.9] — 2026-04-10
 
 ### Added
 - **15 HTTP integration tests**: Full coverage for health, CRUD, CAS, query, memory layers, agents, license, and middleware headers (`akasha-server/tests/http_integration.rs`)
@@ -18,19 +18,33 @@ All notable changes to Akasha are documented in this file.
 - **Node.js SDK on npm**: `npm install akasha-memory` — TypeScript, gRPC + HTTP, CAS, auth, WebSocket subscriptions
 - **VISION.md**: C-Level executive overview (English + Spanish)
 - Docker Hub badge + PyPI badge + npm badge in README
+- **Stress Test Tool**: Comprehensive Python-based validation and load-testing suite (`tools/akasha-stress.py`) — 8 functional tests + 3 async load tests with latency percentiles and throughput reporting
+- **Admin Dashboard CRUD**: Inline role editing and API key management fully wired to backend (`PUT /api/v1/admin/users/:username`)
+- **OpenAPI Spec**: Expanded to 31 endpoints and 13 schemas (admin user/key management)
+- **Documentation Site**: 16-page MkDocs Material site deployed at [ocuil.github.io/akasha-public](https://ocuil.github.io/akasha-public/)
+- **Grafana Dashboard**: 12-panel Grafana template (`deploy/grafana-dashboard.json`)
+- **Aggregated Cluster Metrics**: New `GET /api/v1/cluster/metrics` endpoint — fans out to all peer nodes and returns aggregated totals + per-node breakdown for consistent cluster-wide observability
+- **Dashboard: Overview page**: Cluster-wide aggregated metrics view with Memory Fabric visualization and per-node traffic breakdown
+- **Dashboard: Cluster page**: Interactive node topology with clickable node cards showing per-node metrics, system info (CPU/RAM), and traffic share bars
+- **Dashboard: Navigation**: New sidebar sections — Dashboard, Overview, Cluster, Explorer, Administration
+- **Installer Wizard**: Interactive Bash installer (`tools/akasha-install.sh`) — guides users through Standalone, Docker Cluster, or Kubernetes deployment with automatic fingerprint generation for license requests
 
 ### Changed
 - Docker image references updated from `ghcr.io/ocuil/akasha` to `alejandrosl/akasha` (README, installation docs, Helm values)
 - Python SDK install changed from `pip install -e sdks/python` to `pip install akasha-client`
 - Node.js SDK import changed from `@akasha/client` (local) to `akasha-memory` (npm)
+- Root `docker-compose.yml` simplified to single-node dev config (production cluster in `akasha-pro/`)
 
 ### Fixed
+- **Nidra Memory Purge** (CRITICAL): Consolidated episodic records are now **deleted** instead of just tagged with `_nidra_consolidated`. This fixes unbounded memory growth where records accumulated indefinitely and were re-consolidated every cycle.
 - **Python SDK v1.0.9**: `verify_ssl=False` now correctly propagated to `HTTPTransport` (was being ignored by httpx)
 - **Python Async Client**: Added `api_key`, `token`, `verify_ssl` params (parity with sync client)
 - Unused import warning in `telemetry.rs` (`info` removed after downgrade to `debug`)
 
 ### Metrics
 - Total tests: **163** (145 unit + 15 integration + 3 doc tests), 0 failures
+- Stress test: 11/11 passing (8 functional + 3 load), 175 writes/s, 311 reads/s
+
 
 ## [1.0.8] — 2026-04-09
 

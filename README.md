@@ -12,7 +12,7 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.8-purple.svg)](Cargo.toml)
+[![Version](https://img.shields.io/badge/Version-1.0.9-purple.svg)](Cargo.toml)
 [![Docker](https://img.shields.io/docker/v/alejandrosl/akasha?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/alejandrosl/akasha)
 [![PyPI](https://img.shields.io/pypi/v/akasha-client?color=blue&label=PyPI)](https://pypi.org/project/akasha-client/)
 [![npm](https://img.shields.io/npm/v/akasha-memory?color=CB3837&label=npm)](https://www.npmjs.com/package/akasha-memory)
@@ -205,7 +205,7 @@ In complex multi-agent systems (RAG pipelines, automation workflows, LLM orchest
 - Nidra consolidation runs **only on the elected leader** to avoid duplicate work
 - Adding/removing nodes: automatic SWIM discovery + CRDT sync — **zero configuration**
 
-#### Cluster Upgrade Mode (Grow & Shrink) — v1.0.2
+#### Cluster Upgrade Mode (Grow & Shrink) — v1.0.9
 
 For zero-downtime rolling upgrades, the cluster supports a **temporary +1 node grace period**:
 
@@ -236,7 +236,7 @@ curl -sk -X DELETE https://node-01:7777/api/v1/cluster/upgrade
 | Upgrade mode | license limit + 1 | Grace period (default 1h) |
 | After grace expires | license limit | Auto-evicts last node |
 
-#### License Expiration Watchdog — v1.0.3
+#### License Expiration Watchdog — v1.0.9
 
 Paid licenses (Basic/Enterprise) now enforce expiration with a background watchdog:
 

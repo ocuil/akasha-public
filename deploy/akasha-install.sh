@@ -1,0 +1,756 @@
+#!/usr/bin/env bash
+# ============================================================
+# Akasha Installer Wizard
+# ============================================================
+#
+# Interactive installer that guides users through deploying
+# Akasha in Standalone, Docker Cluster, or Kubernetes mode.
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/ocuil/akasha/main/tools/akasha-install.sh | bash
+#   # or:
+#   ./tools/akasha-install.sh
+#
+# Requirements:
+#   - Standalone: curl, openssl
+#   - Docker:     docker, docker compose
+#   - Kubernetes: kubectl, helm
+# ============================================================
+
+set -euo pipefail
+
+# ── Constants ────────────────────────────────────────────────
+VERSION="1.0.9"
+IMAGE="alejandrosl/akasha:latest"
+GHCR_IMAGE="ghcr.io/ocuil/akasha:latest"
+DEFAULT_HTTP_PORT=7777
+DEFAULT_GRPC_PORT=50051
+DEFAULT_GOSSIP_PORT=7946
+
+# ── Colors ───────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m' # No Color
+
+# ── Helpers ──────────────────────────────────────────────────
+info()    { echo -e "${BLUE}  ℹ${NC}  $1"; }
+success() { echo -e "${GREEN}  ✓${NC}  $1"; }
+warn()    { echo -e "${YELLOW}  ⚠${NC}  $1"; }
+error()   { echo -e "${RED}  ✗${NC}  $1"; }
+step()    { echo -e "\n${PURPLE}  ▸${NC} ${BOLD}$1${NC}"; }
+
+ask() {
+  local prompt="$1"
+  local default="${2:-}"
+  if [ -n "$default" ]; then
+    echo -ne "${CYAN}  ?${NC}  ${prompt} ${DIM}[${default}]${NC}: " >&2
+    read -r answer
+    echo "${answer:-$default}"
+  else
+    echo -ne "${CYAN}  ?${NC}  ${prompt}: " >&2
+    read -r answer
+    echo "$answer"
+  fi
+}
+
+ask_choice() {
+  local prompt="$1"
+  shift
+  local options=("$@")
+  echo -e "\n${CYAN}  ?${NC}  ${prompt}" >&2
+  for i in "${!options[@]}"; do
+    echo -e "     ${BOLD}[$((i+1))]${NC} ${options[$i]}" >&2
+  done
+  echo -ne "     ${DIM}Choose [1-${#options[@]}]:${NC} " >&2
+  read -r choice
+  echo "$((choice - 1))"
+}
+
+generate_secret() {
+  openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | od -An -tx1 | tr -d ' \n'
+}
+
+banner() {
+  echo ""
+  echo -e "${PURPLE}╔══════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${PURPLE}║${NC}  ${BOLD}⊙ Akasha Installer Wizard${NC}                  ${DIM}v${VERSION}${NC}  ${PURPLE}║${NC}"
+  echo -e "${PURPLE}║${NC}  ${DIM}The Shared Cognitive Fabric for AI Agents${NC}           ${PURPLE}║${NC}"
+  echo -e "${PURPLE}╚══════════════════════════════════════════════════════════╝${NC}"
+  echo ""
+}
+
+# ── Pre-flight checks ────────────────────────────────────────
+check_docker() {
+  if ! command -v docker &>/dev/null; then
+    error "Docker is not installed. Install from https://docs.docker.com/get-docker/"
+    exit 1
+  fi
+  if ! docker compose version &>/dev/null 2>&1; then
+    error "Docker Compose V2 is not available. Update Docker Desktop or install docker-compose-plugin."
+    exit 1
+  fi
+  success "Docker $(docker --version | grep -oP '\d+\.\d+\.\d+' | head -1) + Compose detected"
+}
+
+check_kubectl() {
+  if ! command -v kubectl &>/dev/null; then
+    error "kubectl is not installed."
+    exit 1
+  fi
+  if ! command -v helm &>/dev/null; then
+    warn "Helm is not installed — will generate static manifests instead."
+    return 1
+  fi
+  success "kubectl + Helm detected"
+  return 0
+}
+
+# ── Mode: Standalone ─────────────────────────────────────────
+install_standalone() {
+  step "Standalone Installation"
+
+  local os arch
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) error "Unsupported architecture: $arch"; exit 1 ;;
+  esac
+
+  info "Detected: ${os}-${arch}"
+
+  local install_dir
+  install_dir=$(ask "Installation directory" "/opt/akasha")
+
+  step "Downloading Akasha ${VERSION}..."
+
+  local tarball="akasha-${os}-${arch}.tar.gz"
+  local download_url="https://github.com/ocuil/akasha/releases/latest/download/${tarball}"
+
+  mkdir -p "$install_dir"
+
+  if curl -fsSL -o "/tmp/${tarball}" "$download_url" 2>/dev/null; then
+    tar xzf "/tmp/${tarball}" -C "$install_dir"
+    rm -f "/tmp/${tarball}"
+    success "Binary installed to ${install_dir}/akasha"
+  else
+    warn "Could not download release. Checking if Docker is available for fallback..."
+    if command -v docker &>/dev/null; then
+      info "Will run via Docker instead."
+      install_docker_single "$install_dir"
+      return
+    else
+      error "Download failed and Docker not available. Please download manually from:"
+      echo "  https://github.com/ocuil/akasha/releases"
+      exit 1
+    fi
+  fi
+
+  step "Generating configuration..."
+  local node_name
+  node_name=$(ask "Node name" "akasha-01")
+  local http_port
+  http_port=$(ask "HTTP port" "$DEFAULT_HTTP_PORT")
+
+  local jwt_secret
+  jwt_secret=$(generate_secret)
+
+  cat > "${install_dir}/akasha.toml" <<EOF
+# Akasha — Generated by installer wizard
+license_path = "${install_dir}/license.json"
+
+[server]
+name = "${node_name}"
+http_addr = "0.0.0.0:${http_port}"
+grpc_addr = "0.0.0.0:${DEFAULT_GRPC_PORT}"
+
+[persistence]
+enabled = true
+data_dir = "${install_dir}/data"
+
+[ttl]
+sweep_interval_secs = 10
+
+[nidra]
+enabled = true
+
+[auth]
+enabled = true
+jwt_secret = "${jwt_secret}"
+
+[tls]
+enabled = true
+EOF
+
+  success "Configuration written to ${install_dir}/akasha.toml"
+
+  step "Starting Akasha..."
+  "${install_dir}/akasha" "${install_dir}/akasha.toml" &
+  local pid=$!
+  sleep 3
+
+  if kill -0 "$pid" 2>/dev/null; then
+    success "Akasha running (PID: ${pid})"
+    fetch_fingerprint "https://localhost:${http_port}"
+  else
+    error "Failed to start. Check logs."
+    exit 1
+  fi
+}
+
+# ── Mode: Docker Cluster ─────────────────────────────────────
+install_docker_single() {
+  local install_dir="${1:-.}"
+  step "Docker Standalone Setup"
+
+  local http_port
+  http_port=$(ask "HTTP port" "$DEFAULT_HTTP_PORT")
+
+  mkdir -p "${install_dir}"
+
+  cat > "${install_dir}/docker-compose.yml" <<EOF
+name: akasha
+services:
+  akasha:
+    image: ${IMAGE}
+    container_name: akasha
+    ports:
+      - "${http_port}:7777"
+      - "${DEFAULT_GRPC_PORT}:50051"
+    volumes:
+      - akasha-data:/data
+    restart: unless-stopped
+
+volumes:
+  akasha-data:
+EOF
+
+  cd "${install_dir}"
+  docker compose up -d
+  wait_healthy "akasha" 30
+  fetch_fingerprint "https://localhost:${http_port}"
+}
+
+install_docker_cluster() {
+  step "Docker Cluster Installation"
+  check_docker
+
+  local install_dir
+  install_dir=$(ask "Installation directory" "./akasha-cluster")
+  local node_count
+  node_count=$(ask "Number of nodes" "3")
+  local cluster_id
+  cluster_id=$(ask "Cluster ID" "akasha-production")
+  local base_port
+  base_port=$(ask "Base HTTP port (LB)" "$DEFAULT_HTTP_PORT")
+
+  step "Generating cluster configuration..."
+
+  mkdir -p "${install_dir}"
+  local jwt_secret
+  jwt_secret=$(generate_secret)
+
+  # ── Generate node configs ──
+  local seeds=""
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    if [ -n "$seeds" ]; then seeds+=", "; fi
+    seeds+="\"${nn}:${DEFAULT_GOSSIP_PORT}\""
+  done
+
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    local node_port=$((base_port + i))
+
+    cat > "${install_dir}/node-${nn}.toml" <<EOF
+# Akasha Cluster — ${nn}
+license_path = "/app/license.json"
+
+[server]
+name = "${nn}"
+http_addr = "0.0.0.0:7777"
+grpc_addr = "0.0.0.0:50051"
+
+[persistence]
+enabled = true
+data_dir = "/data"
+
+[ttl]
+sweep_interval_secs = 10
+
+[nidra]
+enabled = true
+sweep_interval_secs = 300
+consolidation_every_n_sweeps = 12
+
+[cluster]
+enabled = true
+node_id = "${nn}"
+bind_addr = "0.0.0.0:${DEFAULT_GOSSIP_PORT}"
+advertise_addr = "${nn}:${DEFAULT_GOSSIP_PORT}"
+seeds = [${seeds}]
+cluster_id = "${cluster_id}"
+
+[auth]
+enabled = true
+jwt_secret = "${jwt_secret}"
+
+[tls]
+enabled = true
+
+[telemetry]
+usage_metrics = true
+EOF
+    info "Generated config: node-${nn}.toml"
+  done
+
+  # ── Generate nginx.conf ──
+  local upstream_servers=""
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    upstream_servers+="        server ${nn}:7777;\n"
+  done
+
+  cat > "${install_dir}/nginx.conf" <<EOF
+# Akasha Cluster — Nginx L4 Load Balancer (TLS passthrough)
+worker_processes auto;
+
+events {
+    worker_connections 4096;
+}
+
+stream {
+    upstream akasha_cluster {
+        least_conn;
+$(for i in $(seq 1 "$node_count"); do printf "        server akasha-%02d:7777;\n" "$i"; done)
+    }
+
+    server {
+        listen 443;
+        proxy_pass akasha_cluster;
+        proxy_timeout 86400s;
+        proxy_connect_timeout 5s;
+        proxy_socket_keepalive on;
+    }
+}
+EOF
+
+  # ── Generate docker-compose.yml ──
+  cat > "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+# Akasha Cluster — Generated by installer wizard
+# Nodes: ${node_count} | Cluster ID: ${cluster_id}
+# LB: https://localhost:${base_port}
+
+name: ${cluster_id}
+
+x-common: &common
+  image: ${IMAGE}
+  networks:
+    - akasha-net
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  healthcheck:
+    test: ["CMD", "curl", "-skf", "https://localhost:7777/api/v1/health/live"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+    start_period: 15s
+
+services:
+  # ── Load Balancer ──
+  lb:
+    image: nginx:alpine
+    container_name: ${cluster_id}-lb
+    hostname: ${cluster_id}-lb
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${base_port}:443"
+    networks:
+      - akasha-net
+    depends_on:
+COMPOSE_EOF
+
+  # Add depends_on for LB
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    cat >> "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+      ${nn}:
+        condition: service_healthy
+COMPOSE_EOF
+  done
+
+  cat >> "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+    restart: unless-stopped
+
+COMPOSE_EOF
+
+  # Add node services
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    local node_port=$((base_port + i))
+    local grpc_port=$((DEFAULT_GRPC_PORT + i - 1))
+
+    cat >> "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+  # ── ${nn} ──
+  ${nn}:
+    <<: *common
+    container_name: ${nn}
+    hostname: ${nn}
+    volumes:
+      - data-${nn}:/data
+      - ./node-${nn}.toml:/app/akasha.toml:ro
+    ports:
+      - "${node_port}:7777"
+      - "${grpc_port}:50051"
+    expose:
+      - "${DEFAULT_GOSSIP_PORT}/udp"
+COMPOSE_EOF
+
+    # First node is the seed — others depend on it
+    if [ "$i" -gt 1 ]; then
+      cat >> "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+    depends_on:
+      akasha-01:
+        condition: service_started
+COMPOSE_EOF
+    fi
+    echo "" >> "${install_dir}/docker-compose.yml"
+  done
+
+  # Volumes
+  echo "volumes:" >> "${install_dir}/docker-compose.yml"
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    echo "  data-${nn}:" >> "${install_dir}/docker-compose.yml"
+  done
+
+  # Network
+  cat >> "${install_dir}/docker-compose.yml" <<COMPOSE_EOF
+
+networks:
+  akasha-net:
+    driver: bridge
+COMPOSE_EOF
+
+  success "Cluster configuration generated in ${install_dir}/"
+
+  # ── Deploy ──
+  step "Starting ${node_count}-node cluster..."
+  cd "${install_dir}"
+  docker compose up -d 2>&1 | grep -E "Started|Healthy|Error" || true
+
+  # Wait for all nodes
+  for i in $(seq 1 "$node_count"); do
+    local nn
+    nn=$(printf "akasha-%02d" "$i")
+    wait_healthy "$nn" 45
+  done
+
+  fetch_fingerprint "https://localhost:${base_port}"
+}
+
+# ── Mode: Kubernetes ─────────────────────────────────────────
+install_kubernetes() {
+  step "Kubernetes Deployment"
+
+  local has_helm=false
+  check_kubectl && has_helm=true
+
+  local namespace
+  namespace=$(ask "Kubernetes namespace" "akasha")
+  local replicas
+  replicas=$(ask "Number of replicas" "3")
+  local cluster_id
+  cluster_id=$(ask "Cluster ID" "akasha-production")
+  local install_dir
+  install_dir=$(ask "Output directory for manifests" "./akasha-k8s")
+
+  mkdir -p "${install_dir}"
+
+  if [ "$has_helm" = true ]; then
+    step "Generating Helm values..."
+    cat > "${install_dir}/values.yaml" <<EOF
+# Akasha Helm Values — Generated by installer wizard
+replicaCount: ${replicas}
+image:
+  repository: alejandrosl/akasha
+  tag: "${VERSION}"
+  pullPolicy: IfNotPresent
+
+cluster:
+  enabled: true
+  id: "${cluster_id}"
+
+auth:
+  enabled: true
+  jwtSecret: "$(generate_secret)"
+
+tls:
+  enabled: true
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+
+service:
+  type: ClusterIP
+  httpPort: 7777
+  grpcPort: 50051
+
+ingress:
+  enabled: false
+  # className: nginx
+  # hosts:
+  #   - host: akasha.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+EOF
+    success "Helm values written to ${install_dir}/values.yaml"
+    echo ""
+    info "To deploy:"
+    echo -e "    ${BOLD}helm install akasha oci://ghcr.io/ocuil/akasha-helm \\\\${NC}"
+    echo -e "    ${BOLD}  --namespace ${namespace} --create-namespace \\\\${NC}"
+    echo -e "    ${BOLD}  -f ${install_dir}/values.yaml${NC}"
+  else
+    step "Generating static Kubernetes manifests..."
+    info "Helm not found — generating raw YAML manifests."
+
+    cat > "${install_dir}/namespace.yaml" <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${namespace}
+  labels:
+    app.kubernetes.io/name: akasha
+EOF
+
+    cat > "${install_dir}/statefulset.yaml" <<EOF
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: akasha
+  namespace: ${namespace}
+spec:
+  serviceName: akasha-headless
+  replicas: ${replicas}
+  selector:
+    matchLabels:
+      app: akasha
+  template:
+    metadata:
+      labels:
+        app: akasha
+    spec:
+      containers:
+        - name: akasha
+          image: ${IMAGE}
+          ports:
+            - containerPort: 7777
+              name: https
+            - containerPort: 50051
+              name: grpc
+            - containerPort: ${DEFAULT_GOSSIP_PORT}
+              protocol: UDP
+              name: gossip
+          livenessProbe:
+            exec:
+              command: ["curl", "-skf", "https://localhost:7777/api/v1/health/live"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["curl", "-skf", "https://localhost:7777/api/v1/health/ready"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: akasha
+  namespace: ${namespace}
+spec:
+  type: ClusterIP
+  selector:
+    app: akasha
+  ports:
+    - port: 7777
+      targetPort: https
+      name: https
+    - port: 50051
+      targetPort: grpc
+      name: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: akasha-headless
+  namespace: ${namespace}
+spec:
+  clusterIP: None
+  selector:
+    app: akasha
+  ports:
+    - port: ${DEFAULT_GOSSIP_PORT}
+      targetPort: gossip
+      protocol: UDP
+      name: gossip
+EOF
+
+    success "Manifests written to ${install_dir}/"
+    echo ""
+    info "To deploy:"
+    echo -e "    ${BOLD}kubectl apply -f ${install_dir}/namespace.yaml${NC}"
+    echo -e "    ${BOLD}kubectl apply -f ${install_dir}/statefulset.yaml${NC}"
+  fi
+
+  echo ""
+  info "After deployment, get the fingerprint:"
+  echo -e "    ${BOLD}kubectl port-forward svc/akasha 7777:7777 -n ${namespace}${NC}"
+  echo -e "    ${BOLD}curl -sk https://localhost:7777/api/v1/license/fingerprint${NC}"
+}
+
+# ── Helpers ──────────────────────────────────────────────────
+wait_healthy() {
+  local container="$1"
+  local timeout="${2:-30}"
+  local elapsed=0
+
+  echo -ne "  ${DIM}  Waiting for ${container}...${NC}"
+  while [ $elapsed -lt "$timeout" ]; do
+    local status
+    status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "missing")
+    if [ "$status" = "healthy" ]; then
+      echo -e "\r${GREEN}  ✓${NC}  ${container} is healthy            "
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+    echo -ne "\r  ${DIM}  Waiting for ${container}... ${elapsed}s${NC}  "
+  done
+  echo ""
+  warn "${container} did not become healthy in ${timeout}s (may still be starting)"
+}
+
+fetch_fingerprint() {
+  local base_url="$1"
+  step "Retrieving cluster fingerprint..."
+
+  sleep 2
+
+  # Try to login and get fingerprint
+  local token
+  token=$(curl -sk "${base_url}/api/v1/auth/login" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{"username":"akasha","password":"akasha"}' 2>/dev/null | \
+    grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+  if [ -z "$token" ]; then
+    warn "Could not authenticate (auth may be disabled or credentials differ)"
+    info "Get fingerprint manually: curl -sk ${base_url}/api/v1/license/fingerprint"
+    print_result "${base_url}" "unavailable"
+    return
+  fi
+
+  local fp_response
+  fp_response=$(curl -sk -H "Authorization: Bearer ${token}" \
+    "${base_url}/api/v1/license/fingerprint" 2>/dev/null)
+
+  local fingerprint
+  fingerprint=$(echo "$fp_response" | grep -o '"fingerprint":"[^"]*"' | cut -d'"' -f4)
+
+  if [ -z "$fingerprint" ]; then
+    warn "Could not retrieve fingerprint."
+    info "Get it manually: curl -sk -H 'Authorization: Bearer <token>' ${base_url}/api/v1/license/fingerprint"
+    print_result "${base_url}" "unavailable"
+    return
+  fi
+
+  print_result "${base_url}" "$fingerprint"
+}
+
+print_result() {
+  local url="$1"
+  local fingerprint="$2"
+
+  echo ""
+  echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${GREEN}║${NC}  ${BOLD}⊙ Akasha deployed successfully!${NC}                       ${GREEN}║${NC}"
+  echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
+  echo -e "${GREEN}║${NC}  Dashboard:   ${CYAN}${url}/dashboard${NC}"
+  echo -e "${GREEN}║${NC}  API:         ${CYAN}${url}/api/v1${NC}"
+  echo -e "${GREEN}║${NC}  Credentials: ${BOLD}akasha / akasha${NC}"
+  echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
+
+  if [ "$fingerprint" != "unavailable" ]; then
+    echo -e "${GREEN}║${NC}  ${BOLD}📋 Cluster Fingerprint:${NC}                                ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${YELLOW}${fingerprint}${NC}"
+    echo -e "${GREEN}║${NC}                                                          ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${DIM}To request an Enterprise license, send this${NC}            ${GREEN}║${NC}"
+    echo -e "${GREEN}║${NC}  ${DIM}fingerprint to: license@akasha.dev${NC}                     ${GREEN}║${NC}"
+  fi
+
+  echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
+  echo ""
+  echo -e "  ${DIM}⚠  Change the default password immediately:${NC}"
+  echo -e "  ${DIM}   Click your username in the dashboard sidebar${NC}"
+  echo ""
+}
+
+# ── Main ─────────────────────────────────────────────────────
+main() {
+  banner
+
+  local mode
+  mode=$(ask_choice "Choose deployment mode:" \
+    "🖥  Standalone      — Single node, binary or Docker" \
+    "🐳 Docker Cluster   — Multi-node with load balancer" \
+    "☸  Kubernetes       — Helm chart or static manifests")
+
+  case "$mode" in
+    0) install_standalone ;;
+    1) install_docker_cluster ;;
+    2) install_kubernetes ;;
+    *)
+      error "Invalid choice"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
