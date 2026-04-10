@@ -101,7 +101,9 @@ Akasha is not a roadmap. It is production software, running today.
 |---------|------|
 | **Docker Hub** | `docker pull alejandrosl/akasha` |
 | **Python SDK** | `pip install akasha-client` |
+| **Node.js SDK** | `npm install akasha-memory` |
 | **GitHub** | [github.com/ocuil/akasha-public](https://github.com/ocuil/akasha-public) |
+| **Documentation** | [ocuil.github.io/akasha-public](https://ocuil.github.io/akasha-public/) |
 | **Binary releases** | Linux x86_64 + macOS Intel |
 
 ### Integration Ecosystem
@@ -175,9 +177,10 @@ Akasha solves the foundational layer — the shared cognitive fabric. The roadma
 
 - ✅ Core memory + clustering + CAS concurrency
 - ✅ Python SDK on PyPI
-- ◻️ Node.js SDK on npm
+- ✅ Node.js SDK on npm
+- ✅ Prometheus metrics + Grafana dashboards
+- ✅ Documentation site (MkDocs Material, 16 pages)
 - ◻️ Conflict resolution policies per namespace
-- ◻️ Prometheus metrics + Grafana dashboards
 
 ### Horizon 2: Intelligence (Q3 → Q4 2026)
 *The fabric starts thinking*
