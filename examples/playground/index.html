@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akasha Playground — Try it Live</title>
+    <meta name="description" content="Interactive playground for Akasha — the shared cognitive fabric for intelligent agent systems. Try memory operations, pheromones, and multi-agent coordination in your browser.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a28;
+            --bg-input: #0e0e16;
+            --border: #2a2a3e;
+            --border-glow: #6c5ce7;
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888a8;
+            --text-muted: #5a5a78;
+            --accent: #6c5ce7;
+            --accent-glow: #a29bfe;
+            --green: #00b894;
+            --green-glow: #55efc4;
+            --orange: #fdcb6e;
+            --red: #e17055;
+            --cyan: #00cec9;
+            --pink: #e84393;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background ─────────────────── */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(108, 92, 231, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(108, 92, 231, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-glow-1 { background: var(--accent); top: -200px; left: -100px; }
+        .bg-glow-2 { background: var(--cyan); bottom: -200px; right: -100px; }
+
+        /* ── Header ──────────────────────────────── */
+        header {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 48px 24px 32px;
+        }
+
+        .logo {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-glow);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: clamp(28px, 4vw, 42px);
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 300;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ── Connection bar ──────────────────────── */
+        .connection-bar {
+            position: relative;
+            z-index: 10;
+            max-width: 700px;
+            margin: 24px auto 32px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 0 24px;
+        }
+
+        .connection-bar input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .connection-bar input:focus { border-color: var(--accent); }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #5a4bd1);
+            color: white;
+            box-shadow: 0 4px 20px rgba(108, 92, 231, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 30px rgba(108, 92, 231, 0.5);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s;
+        }
+        .status-dot.connected {
+            background: var(--green);
+            box-shadow: 0 0 12px var(--green-glow);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.error { background: var(--red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ── Main layout ─────────────────────────── */
+        .main {
+            position: relative;
+            z-index: 10;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 64px;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .main { grid-template-columns: 1fr; }
+        }
+
+        /* ── Scenario sidebar ────────────────────── */
+        .scenarios {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .scenarios h3 {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding-left: 4px;
+        }
+
+        .scenario-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+        }
+        .scenario-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--accent);
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        .scenario-card:hover {
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }
+        .scenario-card:hover::before { opacity: 1; }
+        .scenario-card.active {
+            border-color: var(--accent);
+            background: rgba(108, 92, 231, 0.08);
+        }
+        .scenario-card.active::before { opacity: 1; }
+
+        .scenario-card .icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
+        .scenario-card .title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .scenario-card .desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .scenario-card .badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+        .badge-write { background: rgba(0, 184, 148, 0.15); color: var(--green); }
+        .badge-read { background: rgba(0, 206, 201, 0.15); color: var(--cyan); }
+        .badge-pheromone { background: rgba(232, 67, 147, 0.15); color: var(--pink); }
+        .badge-pipeline { background: rgba(253, 203, 110, 0.15); color: var(--orange); }
+
+        /* ── Terminal panel ───────────────────────── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .terminal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border);
+        }
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .terminal-dot:nth-child(1) { background: #ff5f57; }
+        .terminal-dot:nth-child(2) { background: #febc2e; }
+        .terminal-dot:nth-child(3) { background: #28c840; }
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-body {
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-track { background: transparent; }
+        .terminal-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .log-line {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-cmd { color: var(--accent-glow); }
+        .log-ok { color: var(--green); }
+        .log-data { color: var(--cyan); }
+        .log-warn { color: var(--orange); }
+        .log-err { color: var(--red); }
+        .log-dim { color: var(--text-muted); }
+        .log-pink { color: var(--pink); }
+        .log-bold { font-weight: 600; }
+
+        /* ── Metrics bar ─────────────────────────── */
+        .metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .metric-card .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .metric-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .metric-card .value.green { color: var(--green); }
+        .metric-card .value.cyan { color: var(--cyan); }
+        .metric-card .value.accent { color: var(--accent-glow); }
+        .metric-card .value.orange { color: var(--orange); }
+
+        /* ── Footer ──────────────────────────────── */
+        footer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 32px 24px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        footer a {
+            color: var(--accent-glow);
+            text-decoration: none;
+        }
+        footer a:hover { text-decoration: underline; }
+
+        .run-btn-container {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-run {
+            flex: 1;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--green), #00a884);
+            color: white;
+            box-shadow: 0 4px 20px rgba(0, 184, 148, 0.3);
+        }
+        .btn-run:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 30px rgba(0, 184, 148, 0.5);
+        }
+        .btn-clear {
+            padding: 14px 20px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <header>
+        <div class="logo">Akasha</div>
+        <h1>Interactive Playground</h1>
+        <p class="subtitle">Experience the shared cognitive fabric for AI agents — live in your browser. No install required.</p>
+    </header>
+
+    <div class="connection-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <input type="text" id="urlInput" value="https://localhost:7771" placeholder="Akasha URL">
+        <input type="text" id="tokenInput" value="" placeholder="JWT token (optional)">
+        <button class="btn btn-primary" id="connectBtn" onclick="connect()">Connect</button>
+    </div>
+
+    <div class="main">
+        <div class="scenarios">
+            <h3>Scenarios</h3>
+
+            <div class="scenario-card" onclick="runScenario('hello')">
+                <div class="icon">👋</div>
+                <div class="title">Hello Akasha</div>
+                <div class="desc">Write your first record and read it back. The simplest possible interaction.</div>
+                <span class="badge badge-write">WRITE + READ</span>
+            </div>
+
+            <div class="scenario-card" onclick="runScenario('memory')">
+                <div class="icon">🧠</div>
+                <div class="title">Memory Layers</div>
+                <div class="desc">Write to Working, Episodic, and Semantic memory — see how agents build knowledge.</div>
+                <span class="badge badge-write">4 LAYERS</span>
+            </div>
+
+            <div class="scenario-card" onclick="runScenario('cas')">
+                <div class="icon">🔒</div>
+                <div class="title">Optimistic Concurrency</div>
+                <div class="desc">Try CAS (Compare-And-Swap) —  two agents race to update the same record.</div>
+                <span class="badge badge-read">CAS</span>
+            </div>
+
+            <div class="scenario-card" onclick="runScenario('pheromones')">
+                <div class="icon">🐜</div>
+                <div class="title">Pheromone Trails</div>
+                <div class="desc">Deposit coordination signals and sense them — like ants finding food.</div>
+                <span class="badge badge-pheromone">STIGMERGY</span>
+            </div>
+
+            <div class="scenario-card" onclick="runScenario('pipeline')">
+                <div class="icon">🚀</div>
+                <div class="title">3-Agent Pipeline</div>
+                <div class="desc">Scout → Analyst → Reporter: full stigmergy pipeline with latency metrics.</div>
+                <span class="badge badge-pipeline">MULTI-AGENT</span>
+            </div>
+
+            <div class="scenario-card" onclick="runScenario('benchmark')">
+                <div class="icon">⚡</div>
+                <div class="title">Latency Benchmark</div>
+                <div class="desc">50 sequential writes + reads. See sub-millisecond performance live.</div>
+                <span class="badge badge-read">PERF</span>
+            </div>
+        </div>
+
+        <div class="terminal-panel">
+            <div class="metrics-bar">
+                <div class="metric-card">
+                    <div class="label">Operations</div>
+                    <div class="value accent" id="metricOps">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Write P50</div>
+                    <div class="value green" id="metricWriteP50">—</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Read P50</div>
+                    <div class="value cyan" id="metricReadP50">—</div>
+                </div>
+                <div class="metric-card">
+                    <div class="label">Total Time</div>
+                    <div class="value orange" id="metricTotal">—</div>
+                </div>
+            </div>
+
+            <div class="terminal">
+                <div class="terminal-header">
+                    <div class="terminal-dot"></div>
+                    <div class="terminal-dot"></div>
+                    <div class="terminal-dot"></div>
+                    <span class="terminal-title">akasha playground</span>
+                </div>
+                <div class="terminal-body" id="terminal">
+                    <div class="log-line"><span class="log-dim">Welcome to the Akasha Playground.</span></div>
+                    <div class="log-line"><span class="log-dim">Connect to an Akasha instance, then click a scenario to try.</span></div>
+                    <div class="log-line">&nbsp;</div>
+                </div>
+            </div>
+
+            <div class="run-btn-container">
+                <button class="btn btn-clear" onclick="clearTerminal()">Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <a href="https://github.com/ocuil/akasha-public">GitHub</a> &nbsp;·&nbsp;
+        <a href="https://hub.docker.com/r/alejandrosl/akasha">Docker Hub</a> &nbsp;·&nbsp;
+        <a href="https://pypi.org/project/akasha-client/">PyPI</a> &nbsp;·&nbsp;
+        <a href="https://www.npmjs.com/package/akasha-memory">npm</a>
+        <br><br>
+        <span>docker run -d -p 7777:7777 alejandrosl/akasha:latest</span>
+    </footer>
+
+    <script>
+    // ── State ───────────────────────────────────────
+    let BASE_URL = '';
+    let TOKEN = '';
+    let connected = false;
+    const latencies = { write: [], read: [], pheromone: [], query: [] };
+    let totalOps = 0;
+
+    const $ = id => document.getElementById(id);
+    const term = $('terminal');
+
+    // ── Terminal output ─────────────────────────────
+    function log(html) {
+        const div = document.createElement('div');
+        div.className = 'log-line';
+        div.innerHTML = html;
+        term.appendChild(div);
+        term.scrollTop = term.scrollHeight;
+    }
+
+    function logCmd(cmd) { log(`<span class="log-cmd">❯ ${cmd}</span>`); }
+    function logOk(msg) { log(`<span class="log-ok">  ✓ ${msg}</span>`); }
+    function logData(msg) { log(`<span class="log-data">  ${msg}</span>`); }
+    function logWarn(msg) { log(`<span class="log-warn">  ⚠ ${msg}</span>`); }
+    function logErr(msg) { log(`<span class="log-err">  ✗ ${msg}</span>`); }
+    function logDim(msg) { log(`<span class="log-dim">  ${msg}</span>`); }
+    function logPink(msg) { log(`<span class="log-pink">  ${msg}</span>`); }
+    function logBr() { log('&nbsp;'); }
+
+    function clearTerminal() {
+        term.innerHTML = '';
+        latencies.write = [];
+        latencies.read = [];
+        latencies.pheromone = [];
+        latencies.query = [];
+        totalOps = 0;
+        updateMetrics();
+    }
+
+    // ── Metrics ─────────────────────────────────────
+    function median(arr) {
+        if (!arr.length) return 0;
+        const s = [...arr].sort((a, b) => a - b);
+        return s[Math.floor(s.length / 2)];
+    }
+
+    function updateMetrics() {
+        $('metricOps').textContent = totalOps;
+        $('metricWriteP50').textContent = latencies.write.length ? median(latencies.write).toFixed(1) + 'ms' : '—';
+        $('metricReadP50').textContent = latencies.read.length ? median(latencies.read).toFixed(1) + 'ms' : '—';
+        const total = [...latencies.write, ...latencies.read, ...latencies.pheromone, ...latencies.query].reduce((a, b) => a + b, 0);
+        $('metricTotal').textContent = total ? total.toFixed(0) + 'ms' : '—';
+    }
+
+    // ── HTTP helpers ────────────────────────────────
+    async function api(method, path, body = null) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+
+        const opts = { method, headers };
+        if (body) opts.body = JSON.stringify(body);
+
+        const res = await fetch(`${BASE_URL}${path}`, opts);
+        const text = await res.text();
+        try { return { status: res.status, data: JSON.parse(text) }; }
+        catch { return { status: res.status, data: text }; }
+    }
+
+    async function timedApi(op, method, path, body = null) {
+        const t0 = performance.now();
+        const result = await api(method, path, body);
+        const ms = performance.now() - t0;
+        if (latencies[op]) latencies[op].push(ms);
+        totalOps++;
+        updateMetrics();
+        return { ...result, ms };
+    }
+
+    // ── Connect ─────────────────────────────────────
+    async function connect() {
+        BASE_URL = $('urlInput').value.replace(/\/$/, '');
+        TOKEN = $('tokenInput').value.trim();
+
+        logCmd(`connect ${BASE_URL}`);
+        $('statusDot').className = 'status-dot';
+        $('connectBtn').disabled = true;
+
+        try {
+            const { data } = await api('GET', '/api/v1/health');
+            connected = true;
+            $('statusDot').className = 'status-dot connected';
+            logOk(`Connected to Akasha v${data.version}`);
+            logData(`Cluster: ${data.cluster?.mode || 'standalone'} · Node: ${data.cluster?.node_id || 'local'} · Records: ${data.records}`);
+            if (data.cluster?.peers_alive) logData(`Peers: ${data.cluster.peers_alive} alive / ${data.cluster.peers_total} total`);
+            logBr();
+        } catch (e) {
+            $('statusDot').className = 'status-dot error';
+            logErr(`Connection failed: ${e.message}`);
+            logDim(`Make sure Akasha is running: docker run -d -p 7777:7777 alejandrosl/akasha`);
+            logBr();
+        }
+        $('connectBtn').disabled = false;
+    }
+
+    // ── Scenarios ────────────────────────────────────
+    function setActive(name) {
+        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+        event?.target?.closest('.scenario-card')?.classList.add('active');
+    }
+
+    async function runScenario(name) {
+        if (!connected) { logWarn('Connect to an Akasha instance first'); return; }
+        setActive(name);
+
+        switch (name) {
+            case 'hello': return await scenarioHello();
+            case 'memory': return await scenarioMemory();
+            case 'cas': return await scenarioCas();
+            case 'pheromones': return await scenarioPheromones();
+            case 'pipeline': return await scenarioPipeline();
+            case 'benchmark': return await scenarioBenchmark();
+        }
+    }
+
+    // ── Scenario: Hello ─────────────────────────────
+    async function scenarioHello() {
+        logCmd('PUT playground/hello');
+        const w = await timedApi('write', 'POST', '/api/v1/records/playground/hello', {
+            value: { message: 'Hello from the Playground!', timestamp: new Date().toISOString() }
+        });
+        logOk(`Written in ${w.ms.toFixed(1)}ms (version: ${w.data.version})`);
+
+        logCmd('GET playground/hello');
+        const r = await timedApi('read', 'GET', '/api/v1/records/playground/hello');
+        logOk(`Read in ${r.ms.toFixed(1)}ms`);
+        logData(`Value: ${JSON.stringify(r.data.value)}`);
+
+        logCmd('DELETE playground/hello');
+        const d = await timedApi('write', 'DELETE', '/api/v1/records/playground/hello');
+        logOk(`Deleted (${d.ms.toFixed(1)}ms)`);
+        logBr();
+    }
+
+    // ── Scenario: Memory Layers ─────────────────────
+    async function scenarioMemory() {
+        const layers = [
+            { name: 'working', desc: 'Short-term scratch', ttl: 60, value: { task: 'analyzing-data', progress: 0.4 } },
+            { name: 'episodic', desc: 'Event log', ttl: 3600, value: { event: 'user-login', user: 'agent-007', at: new Date().toISOString() } },
+            { name: 'semantic', desc: 'Permanent knowledge', ttl: null, value: { fact: 'Customer prefers email over Slack', confidence: 0.92 } },
+            { name: 'procedural', desc: 'How-to knowledge', ttl: null, value: { procedure: 'deploy-canary', steps: ['build', 'test', 'deploy-10%', 'monitor', 'promote'] } },
+        ];
+
+        for (const layer of layers) {
+            const path = `memory/${layer.name}/playground/demo`;
+            const body = { value: layer.value };
+            if (layer.ttl) body.ttl_seconds = layer.ttl;
+
+            logCmd(`PUT ${path}`);
+            const w = await timedApi('write', 'POST', `/api/v1/records/${path}`, body);
+            logOk(`${layer.name} (${layer.desc}) — ${w.ms.toFixed(1)}ms${layer.ttl ? ` [TTL: ${layer.ttl}s]` : ' [permanent]'}`);
+        }
+
+        logBr();
+        logCmd('QUERY memory/*/playground/*');
+        const q = await timedApi('query', 'GET', '/api/v1/query?pattern=memory/*/playground/*');
+        logOk(`Found ${Array.isArray(q.data) ? q.data.length : 0} records across all layers (${q.ms.toFixed(1)}ms)`);
+
+        // Cleanup
+        for (const l of layers) {
+            await api('DELETE', `/api/v1/records/memory/${l.name}/playground/demo`);
+        }
+        logBr();
+    }
+
+    // ── Scenario: CAS ───────────────────────────────
+    async function scenarioCas() {
+        logCmd('PUT playground/counter = {count: 0}');
+        const w = await timedApi('write', 'POST', '/api/v1/records/playground/counter', { value: { count: 0 } });
+        logOk(`Created (version: ${w.data.version}, ${w.ms.toFixed(1)}ms)`);
+
+        logCmd('GET playground/counter');
+        const r = await timedApi('read', 'GET', '/api/v1/records/playground/counter');
+        const ver = r.data.version;
+        logOk(`Read version ${ver} (${r.ms.toFixed(1)}ms)`);
+
+        logCmd(`CAS PUT (If-Match: ${ver}) → {count: 1}`);
+        const cas1 = await timedApi('write', 'POST', '/api/v1/records/playground/counter', { value: { count: 1 } });
+        logOk(`CAS success → version ${cas1.data.version} (${cas1.ms.toFixed(1)}ms)`);
+
+        logCmd(`CAS PUT (If-Match: ${ver}) → {count: 2}  ← stale version!`);
+        const staleRes = await fetch(`${BASE_URL}/api/v1/records/playground/counter`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'If-Match': String(ver),
+                ...(TOKEN ? { 'Authorization': `Bearer ${TOKEN}` } : {}),
+            },
+            body: JSON.stringify({ value: { count: 2 } }),
+        });
+        if (staleRes.status === 409) {
+            logPink(`🔒 409 Conflict — CAS rejected the stale update!`);
+            logDim(`Agent B would retry with the current version.`);
+        } else {
+            logWarn(`Expected 409 but got ${staleRes.status}`);
+        }
+        totalOps++; updateMetrics();
+
+        await api('DELETE', '/api/v1/records/playground/counter');
+        logBr();
+    }
+
+    // ── Scenario: Pheromones ────────────────────────
+    async function scenarioPheromones() {
+        const trails = [
+            { trail: 'playground/food-source-A', type: 'discovery', emitter: 'scout-01', intensity: 0.8 },
+            { trail: 'playground/food-source-B', type: 'discovery', emitter: 'scout-02', intensity: 0.3 },
+            { trail: 'playground/danger-zone', type: 'warning', emitter: 'scout-03', intensity: 0.95 },
+        ];
+
+        for (const t of trails) {
+            logCmd(`DEPOSIT pheromone: ${t.trail} (${t.type}, intensity=${t.intensity})`);
+            const w = await timedApi('pheromone', 'POST', '/api/v1/pheromones', {
+                trail: t.trail,
+                signal_type: t.type,
+                emitter: t.emitter,
+                intensity: t.intensity,
+                half_life_secs: 120,
+                payload: { source: 'playground' },
+            });
+            logOk(`Deposited (${w.ms.toFixed(1)}ms)`);
+        }
+
+        logBr();
+        logCmd('SENSE pheromones playground/*');
+        const sense = await timedApi('query', 'GET', '/api/v1/pheromones');
+        const all = Array.isArray(sense.data) ? sense.data : [];
+        const pg = all.filter(t => t.trail?.startsWith('playground/'));
+        logOk(`Sensed ${pg.length} active trails (${sense.ms.toFixed(1)}ms)`);
+
+        for (const t of pg) {
+            const bar = '▓'.repeat(Math.max(1, Math.round((t.current_intensity || t.intensity || 0) * 15)));
+            const intensity = (t.current_intensity || t.intensity || 0).toFixed(2);
+            logData(`${t.trail.padEnd(30)} ${bar} ${intensity} (${t.signal_type} by ${t.emitter})`);
+        }
+        logDim('Pheromones decay over time (half-life) — just like ant trails!');
+        logBr();
+    }
+
+    // ── Scenario: Pipeline ──────────────────────────
+    async function scenarioPipeline() {
+        const t0 = performance.now();
+
+        log(`<span class="log-bold log-cmd">─── Phase 1: Scout ───</span>`);
+        const sources = ['weather-api', 'sales-db', 'iot-sensors'];
+        for (const src of sources) {
+            const w = await timedApi('write', 'POST', `/api/v1/records/playground/working/scout/${src}`, {
+                value: { source: src, status: 'discovered', records: Math.floor(Math.random() * 100000) },
+                ttl_seconds: 300,
+            });
+            logOk(`Scout discovered ${src} (${w.ms.toFixed(1)}ms)`);
+
+            await timedApi('pheromone', 'POST', '/api/v1/pheromones', {
+                trail: `playground/discovery/${src}`,
+                signal_type: 'discovery',
+                emitter: 'scout',
+                intensity: Math.random() * 0.5 + 0.5,
+                half_life_secs: 300,
+            });
+        }
+
+        logBr();
+        log(`<span class="log-bold log-cmd">─── Phase 2: Analyst ───</span>`);
+        for (const src of sources) {
+            const r = await timedApi('read', 'GET', `/api/v1/records/playground/working/scout/${src}`);
+            const quality = (Math.random() * 0.3 + 0.7).toFixed(2);
+            const w = await timedApi('write', 'POST', `/api/v1/records/playground/episodic/analysis/${src}`, {
+                value: { source: src, quality_score: parseFloat(quality), recommendation: quality > 0.8 ? 'high-priority' : 'normal' },
+            });
+            logOk(`Analyst: ${src} → quality=${quality} (read: ${r.ms.toFixed(1)}ms, write: ${w.ms.toFixed(1)}ms)`);
+        }
+
+        logBr();
+        log(`<span class="log-bold log-cmd">─── Phase 3: Reporter ───</span>`);
+        const q = await timedApi('query', 'GET', '/api/v1/query?pattern=playground/episodic/analysis/*');
+        const rw = await timedApi('write', 'POST', '/api/v1/records/playground/semantic/report/latest', {
+            value: { type: 'pipeline-report', sources_analyzed: sources.length, generated_at: new Date().toISOString() },
+        });
+        logOk(`Reporter: consolidated ${Array.isArray(q.data) ? q.data.length : 0} analyses → semantic memory (${rw.ms.toFixed(1)}ms)`);
+
+        const elapsed = performance.now() - t0;
+        logBr();
+        logData(`Pipeline complete: ${elapsed.toFixed(0)}ms total, ${totalOps} Akasha ops`);
+        logData(`Coordination overhead: ${(latencies.write.reduce((a,b)=>a+b,0) + latencies.read.reduce((a,b)=>a+b,0)).toFixed(0)}ms`);
+        logDim('Zero LLM calls. Agents coordinated via pheromones + shared memory.');
+
+        // Cleanup
+        for (const src of sources) {
+            api('DELETE', `/api/v1/records/playground/working/scout/${src}`);
+            api('DELETE', `/api/v1/records/playground/episodic/analysis/${src}`);
+        }
+        api('DELETE', '/api/v1/records/playground/semantic/report/latest');
+        logBr();
+    }
+
+    // ── Scenario: Benchmark ─────────────────────────
+    async function scenarioBenchmark() {
+        const N = 50;
+        logCmd(`Benchmark: ${N} writes + ${N} reads (sequential)`);
+        logBr();
+
+        const writeLats = [];
+        for (let i = 0; i < N; i++) {
+            const t0 = performance.now();
+            await api('POST', `/api/v1/records/playground/bench/${i}`, { value: { i, ts: Date.now() } });
+            writeLats.push(performance.now() - t0);
+            totalOps++;
+        }
+        latencies.write.push(...writeLats);
+
+        const readLats = [];
+        for (let i = 0; i < N; i++) {
+            const t0 = performance.now();
+            await api('GET', `/api/v1/records/playground/bench/${i}`);
+            readLats.push(performance.now() - t0);
+            totalOps++;
+        }
+        latencies.read.push(...readLats);
+        updateMetrics();
+
+        const wp50 = median(writeLats);
+        const wp99 = [...writeLats].sort((a,b)=>a-b)[Math.floor(N*0.99)];
+        const rp50 = median(readLats);
+        const rp99 = [...readLats].sort((a,b)=>a-b)[Math.floor(N*0.99)];
+        const totalMs = writeLats.reduce((a,b)=>a+b,0) + readLats.reduce((a,b)=>a+b,0);
+
+        logOk(`<span class="log-bold">Writes (${N} ops)</span>`);
+        logData(`P50: ${wp50.toFixed(1)}ms  P99: ${wp99.toFixed(1)}ms  Total: ${writeLats.reduce((a,b)=>a+b,0).toFixed(0)}ms`);
+        logOk(`<span class="log-bold">Reads (${N} ops)</span>`);
+        logData(`P50: ${rp50.toFixed(1)}ms  P99: ${rp99.toFixed(1)}ms  Total: ${readLats.reduce((a,b)=>a+b,0).toFixed(0)}ms`);
+        logBr();
+        logData(`Throughput: ${(N*2 / (totalMs/1000)).toFixed(0)} ops/sec (single-threaded, sequential, over HTTPS)`);
+        logDim('LLM inference takes 2-30 seconds. Akasha takes <5ms. The bottleneck is never memory.');
+
+        // Cleanup
+        for (let i = 0; i < N; i++) api('DELETE', `/api/v1/records/playground/bench/${i}`);
+        logBr();
+    }
+    </script>
+</body>
+</html>

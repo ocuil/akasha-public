@@ -15,6 +15,7 @@
 [![Version](https://img.shields.io/badge/Version-1.0.8-purple.svg)](Cargo.toml)
 [![Docker](https://img.shields.io/docker/v/alejandrosl/akasha?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/alejandrosl/akasha)
 [![PyPI](https://img.shields.io/pypi/v/akasha-client?color=blue&label=PyPI)](https://pypi.org/project/akasha-client/)
+[![npm](https://img.shields.io/npm/v/akasha-memory?color=CB3837&label=npm)](https://www.npmjs.com/package/akasha-memory)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
 [![Tests](https://img.shields.io/badge/Tests-163_passing-success.svg)](#project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
@@ -425,13 +426,17 @@ See [Python SDK docs](sdks/python/README.md) | [PyPI](https://pypi.org/project/a
 ### Node.js SDK
 
 ```bash
-cd sdks/node && npm install && npm run build
+npm install akasha-memory
 ```
 
 ```typescript
-import { AkashaClient } from '@akasha/client';
+import { AkashaHttpClient } from 'akasha-memory';
 
-const client = new AkashaClient({ address: 'localhost:50051' });
+const client = new AkashaHttpClient({
+  baseUrl: 'https://localhost:7777',
+  token: 'your-jwt-token',
+  rejectUnauthorized: false,  // for self-signed certs
+});
 
 await client.put('agents/orchestrator/state', {
   status: 'coordinating',
@@ -440,12 +445,19 @@ await client.put('agents/orchestrator/state', {
 
 const worker = await client.get('agents/worker-01/state');
 
-for await (const event of client.subscribe('agents/**')) {
+// CAS (optimistic concurrency)
+const record = await client.get('agents/counter');
+await client.putCas('agents/counter', { count: 2 }, record!.version);
+
+// gRPC client also available:
+import { AkashaClient } from 'akasha-memory';
+const grpc = new AkashaClient({ address: 'localhost:50051' });
+for await (const event of grpc.subscribe('agents/**')) {
   console.log(`[${event.kind}] ${event.path}`);
 }
 ```
 
-Also includes **HTTP client** with WebSocket subscriptions. See [Node.js SDK docs](sdks/node/README.md).
+Also includes **HTTP client** with WebSocket subscriptions. See [Node.js SDK docs](sdks/node/README.md) | [npm](https://www.npmjs.com/package/akasha-memory).
 
 ## Configuration
 

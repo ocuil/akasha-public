@@ -15,14 +15,18 @@ All notable changes to Akasha are documented in this file.
 - **SDK: TLS toggle**: `verify_ssl=False` for self-signed certificate environments
 - **LangGraph integration example**: 4-agent pipeline (Researcher → Analyst → Writer → Critic) sharing knowledge through Akasha (`examples/langgraph-memory/`)
 - **One-line installer**: `curl -fsSL https://... | bash` — auto-detects OS/arch (`deploy/get-akasha.sh`)
+- **Node.js SDK on npm**: `npm install akasha-memory` — TypeScript, gRPC + HTTP, CAS, auth, WebSocket subscriptions
 - **VISION.md**: C-Level executive overview (English + Spanish)
-- Docker Hub badge + PyPI badge in README
+- Docker Hub badge + PyPI badge + npm badge in README
 
 ### Changed
 - Docker image references updated from `ghcr.io/ocuil/akasha` to `alejandrosl/akasha` (README, installation docs, Helm values)
 - Python SDK install changed from `pip install -e sdks/python` to `pip install akasha-client`
+- Node.js SDK import changed from `@akasha/client` (local) to `akasha-memory` (npm)
 
 ### Fixed
+- **Python SDK v1.0.9**: `verify_ssl=False` now correctly propagated to `HTTPTransport` (was being ignored by httpx)
+- **Python Async Client**: Added `api_key`, `token`, `verify_ssl` params (parity with sync client)
 - Unused import warning in `telemetry.rs` (`info` removed after downgrade to `debug`)
 
 ### Metrics
