@@ -1,0 +1,2 @@
+akasha-client>=1.0.8
+langgraph>=0.2.0

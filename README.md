@@ -293,7 +293,15 @@ docker run -d --name akasha \
 docker cp akasha:/akasha-data/tls/ca.pem ./akasha-ca.pem
 ```
 
-### Option 2: Build from Source
+### Option 2: One-Line Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ocuil/akasha-public/main/deploy/get-akasha.sh | bash
+```
+
+Detects your OS/arch, downloads the correct binary, and installs to `/usr/local/bin/`.
+
+### Option 3: Build from Source
 
 ```bash
 git clone https://github.com/ocuil/akasha.git
@@ -307,7 +315,7 @@ cargo run --release
 cargo run --release -- akasha.toml
 ```
 
-### Option 3: 3-Node Enterprise Cluster
+### Option 4: 3-Node Enterprise Cluster
 
 ```bash
 # Requires Enterprise license

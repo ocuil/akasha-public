@@ -13,6 +13,9 @@ All notable changes to Akasha are documented in this file.
 - **SDK: CAS support**: New `put_cas()` method with `CasConflictError` exception for optimistic concurrency
 - **SDK: Authentication**: API key (`X-API-Key`) and JWT (`Bearer`) token support
 - **SDK: TLS toggle**: `verify_ssl=False` for self-signed certificate environments
+- **LangGraph integration example**: 4-agent pipeline (Researcher → Analyst → Writer → Critic) sharing knowledge through Akasha (`examples/langgraph-memory/`)
+- **One-line installer**: `curl -fsSL https://... | bash` — auto-detects OS/arch (`deploy/get-akasha.sh`)
+- **VISION.md**: C-Level executive overview (English + Spanish)
 - Docker Hub badge + PyPI badge in README
 
 ### Changed
