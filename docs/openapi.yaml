@@ -1,0 +1,745 @@
+openapi: '3.1.0'
+info:
+  title: Akasha API
+  version: '1.0.9'
+  description: |
+    **Akasha** is the shared cognitive fabric for multi-agent AI systems.
+    
+    This API provides full control over Akasha's distributed key-value store, 
+    stigmergy-based coordination (pheromones), hierarchical memory layers, 
+    and cluster management.
+
+    ## Authentication
+    
+    All endpoints except `/api/v1/health` require authentication:
+    - **JWT**: `Authorization: Bearer <token>` (obtained via `POST /api/v1/auth/login`)
+    - **API Key**: `X-API-Key: <key>`
+
+    ## Key Concepts
+    
+    - **Records**: JSON key-value pairs addressable by hierarchical paths (e.g., `agents/planner/state`)
+    - **Memory Layers**: Working (TTL 60s), Episodic (TTL 1h), Semantic (permanent), Procedural (permanent)
+    - **Pheromones**: Coordination signals that decay over time (stigmergy)
+    - **CAS**: Compare-And-Swap via `If-Match` header for optimistic concurrency
+  license:
+    name: ASL-1.0
+    url: https://github.com/ocuil/akasha-public/blob/main/LICENSE
+  contact:
+    name: Alejandro Sánchez Losa
+    url: https://github.com/ocuil/akasha-public
+    email: dev@alejandrosl.com
+
+servers:
+  - url: https://localhost:7777
+    description: Local development
+  - url: https://localhost:7771
+    description: Direct node access (node-01)
+
+tags:
+  - name: Health
+    description: Server health and readiness probes
+  - name: Records
+    description: Core CRUD operations on the key-value store
+  - name: Query
+    description: Pattern-based record discovery
+  - name: Memory
+    description: Cognitive memory layer management
+  - name: Pheromones
+    description: Stigmergy-based agent coordination
+  - name: Agents
+    description: Agent registration and discovery
+  - name: Cluster
+    description: Cluster topology and management
+  - name: License
+    description: License status and fingerprint
+  - name: Metrics
+    description: Observability and performance metrics
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns server status, version, record count, and cluster info.
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                name: akasha
+                version: '1.0.8'
+                records: 475
+                pending_telemetry: false
+                cluster:
+                  mode: clustered
+                  node_id: akasha-01
+                  role: leader
+                  peers_alive: 4
+                  peers_total: 4
+
+  /api/v1/health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Returns 200 if the process is alive. For Kubernetes liveness checks.
+      operationId: healthLive
+      security: []
+      responses:
+        '200':
+          description: Process is alive
+
+  /api/v1/health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: Returns 200 if the node is ready to serve traffic.
+      operationId: healthReady
+      security: []
+      responses:
+        '200':
+          description: Node is ready
+        '503':
+          description: Node is not ready
+
+  /api/v1/records/{path}:
+    get:
+      tags: [Records]
+      summary: Get record
+      description: Retrieve a record by its full path.
+      operationId: getRecord
+      parameters:
+        - $ref: '#/components/parameters/RecordPath'
+      responses:
+        '200':
+          description: Record found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '404':
+          description: Record not found
+
+    post:
+      tags: [Records]
+      summary: Write record
+      description: |
+        Create or update a record. Supports CAS (Compare-And-Swap) via the `If-Match` header.
+        
+        **CAS**: Include `If-Match: <version>` to perform an atomic update only if the current 
+        version matches. Returns 409 on conflict.
+      operationId: putRecord
+      parameters:
+        - $ref: '#/components/parameters/RecordPath'
+        - name: If-Match
+          in: header
+          required: false
+          description: Expected version for CAS (Compare-And-Swap). Returns 409 if mismatch.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutRecordBody'
+            examples:
+              simple:
+                summary: Simple write
+                value:
+                  value: { status: thinking, task: analyze-data }
+              with_ttl:
+                summary: Write with TTL
+                value:
+                  value: { temp: true }
+                  ttl_seconds: 300
+              with_tags:
+                summary: Write with tags
+                value:
+                  value: { result: 42 }
+                  tags: { env: production, team: ml }
+      responses:
+        '200':
+          description: Record written
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        '409':
+          description: CAS conflict — version mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CasConflictResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Records]
+      summary: Delete record
+      description: Remove a record by path.
+      operationId: deleteRecord
+      parameters:
+        - $ref: '#/components/parameters/RecordPath'
+      responses:
+        '200':
+          description: Record deleted
+        '404':
+          description: Record not found
+
+  /api/v1/query:
+    get:
+      tags: [Query]
+      summary: Query records
+      description: |
+        Search records using glob patterns. Supports `*` (single level) and `**` (recursive).
+        
+        Examples:
+        - `agents/*/state` — all agent states
+        - `memory/working/**` — everything in working memory
+        - `agents/planner*` — prefix match
+      operationId: queryRecords
+      parameters:
+        - name: pattern
+          in: query
+          required: true
+          schema:
+            type: string
+          example: agents/*/state
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Matching records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RecordResponse'
+
+  /api/v1/agents:
+    get:
+      tags: [Agents]
+      summary: List agents
+      description: Returns all registered agents with their current state.
+      operationId: listAgents
+      responses:
+        '200':
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentInfo'
+
+  /api/v1/tree:
+    get:
+      tags: [Records]
+      summary: Tree snapshot
+      description: Returns a hierarchical snapshot of the entire key-value namespace.
+      operationId: treeSnapshot
+      responses:
+        '200':
+          description: Namespace tree
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/v1/metrics:
+    get:
+      tags: [Metrics]
+      summary: Application metrics
+      description: Returns internal application metrics (record count, uptime, connected agents).
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+  /api/v1/nidra/status:
+    get:
+      tags: [Memory]
+      summary: Nidra consolidation status
+      description: |
+        Returns the status of the Nidra memory consolidation engine.
+        Nidra periodically consolidates working memory into long-term storage.
+      operationId: nidraStatus
+      responses:
+        '200':
+          description: Nidra status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NidraStatus'
+
+  /api/v1/pheromones:
+    get:
+      tags: [Pheromones]
+      summary: Sense pheromones
+      description: |
+        Returns all active pheromone trails with their current intensity.
+        Intensities decay over time based on `half_life_secs` (stigmergy).
+      operationId: sensePheromones
+      responses:
+        '200':
+          description: Active pheromone trails
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PheromoneResponse'
+
+    post:
+      tags: [Pheromones]
+      summary: Deposit pheromone
+      description: |
+        Deposit a coordination signal (pheromone) on a trail.
+        If a trail already exists, the signal is **reinforced** (intensities sum).
+        Signals decay over time based on the configured half-life.
+      operationId: depositPheromone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositPheromoneBody'
+            example:
+              trail: tasks/priority/high
+              signal_type: success
+              emitter: agent-planner-01
+              intensity: 0.85
+              half_life_secs: 1800
+              payload: { task_id: T-42, confidence: 0.9 }
+      responses:
+        '200':
+          description: Pheromone deposited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PheromoneResponse'
+
+  /api/v1/memory/layers:
+    get:
+      tags: [Memory]
+      summary: Memory layer stats
+      description: Returns record counts per cognitive memory layer.
+      operationId: memoryLayers
+      responses:
+        '200':
+          description: Layer statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryLayersResponse'
+
+  /api/v1/cluster/status:
+    get:
+      tags: [Cluster]
+      summary: Cluster status
+      description: Returns overall cluster health and SWIM protocol state.
+      operationId: clusterStatus
+      responses:
+        '200':
+          description: Cluster status
+
+  /api/v1/cluster/nodes:
+    get:
+      tags: [Cluster]
+      summary: List cluster nodes
+      description: Returns all nodes in the cluster with their health status.
+      operationId: clusterNodes
+      responses:
+        '200':
+          description: Node list
+
+  /api/v1/cluster/sync:
+    get:
+      tags: [Cluster]
+      summary: Sync status
+      description: Returns CRDT replication sync status between nodes.
+      operationId: syncStatus
+      responses:
+        '200':
+          description: Sync state
+
+  /api/v1/cluster/raft:
+    get:
+      tags: [Cluster]
+      summary: Raft consensus status
+      description: Returns the Raft consensus state (leader, term, commit index).
+      operationId: raftStatus
+      responses:
+        '200':
+          description: Raft state
+
+  /api/v1/cluster/upgrade:
+    get:
+      tags: [Cluster]
+      summary: Upgrade mode status
+      description: Check if the cluster is in rolling upgrade mode.
+      operationId: upgradeStatus
+      responses:
+        '200':
+          description: Upgrade mode state
+
+    post:
+      tags: [Cluster]
+      summary: Enable upgrade mode
+      description: Put the cluster into rolling upgrade mode (Enterprise only).
+      operationId: enableUpgrade
+      responses:
+        '200':
+          description: Upgrade mode enabled
+
+    delete:
+      tags: [Cluster]
+      summary: Disable upgrade mode
+      description: Exit rolling upgrade mode.
+      operationId: disableUpgrade
+      responses:
+        '200':
+          description: Upgrade mode disabled
+
+  /api/v1/license/fingerprint:
+    get:
+      tags: [License]
+      summary: License fingerprint
+      description: Returns the hardware fingerprint used for license binding.
+      operationId: licenseFingerprint
+      responses:
+        '200':
+          description: Fingerprint
+
+  /api/v1/license/status:
+    get:
+      tags: [License]
+      summary: License status
+      description: Returns current license tier, expiration, and read-only state.
+      operationId: licenseStatus
+      responses:
+        '200':
+          description: License info
+
+  /api/v1/system/metrics:
+    get:
+      tags: [Metrics]
+      summary: System metrics
+      description: Returns system-level metrics (CPU, memory, disk).
+      operationId: systemMetrics
+      responses:
+        '200':
+          description: System metrics
+
+  /metrics:
+    get:
+      tags: [Metrics]
+      summary: Prometheus metrics
+      description: Returns metrics in Prometheus scrape format.
+      operationId: prometheusMetrics
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/v1/auth/login:
+    post:
+      tags: [Health]
+      summary: Login
+      description: Authenticate and receive a JWT token.
+      operationId: authLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+            example:
+              username: akasha
+              password: akasha
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  username:
+                    type: string
+                  role:
+                    type: string
+                  expires_in_hours:
+                    type: integer
+        '401':
+          description: Invalid credentials
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    RecordPath:
+      name: path
+      in: path
+      required: true
+      description: |
+        Hierarchical path to the record (e.g., `agents/planner/state`).
+        Paths are `/`-separated and can have any depth.
+      schema:
+        type: string
+      example: agents/planner-01/state
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        name:
+          type: string
+        version:
+          type: string
+        records:
+          type: integer
+        pending_telemetry:
+          type: boolean
+        cluster:
+          $ref: '#/components/schemas/ClusterHealthInfo'
+
+    ClusterHealthInfo:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [standalone, clustered]
+        node_id:
+          type: string
+        role:
+          type: string
+          enum: [leader, follower]
+        peers_alive:
+          type: integer
+        peers_total:
+          type: integer
+
+    RecordResponse:
+      type: object
+      required: [path, value, version, created_at, updated_at, content_type]
+      properties:
+        path:
+          type: string
+          example: agents/planner-01/state
+        value:
+          description: The stored JSON value
+        version:
+          type: integer
+          description: Monotonically increasing version number
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        ttl_seconds:
+          type: number
+          nullable: true
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        content_type:
+          type: string
+          default: application/json
+
+    PutRecordBody:
+      type: object
+      required: [value]
+      properties:
+        value:
+          description: Any valid JSON value to store
+        content_type:
+          type: string
+          default: application/json
+        ttl_seconds:
+          type: number
+          description: Time-to-live in seconds. Record auto-expires after this duration.
+        tags:
+          type: object
+          description: Key-value metadata tags for the record
+          additionalProperties:
+            type: string
+
+    CasConflictResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "CAS conflict"
+        expected_version:
+          type: integer
+        actual_version:
+          type: integer
+        current:
+          description: Current value of the record
+
+    AgentInfo:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        path:
+          type: string
+        state:
+          description: Current agent state
+
+    MetricsResponse:
+      type: object
+      properties:
+        total_records:
+          type: integer
+        uptime_seconds:
+          type: integer
+        connected_agents:
+          type: integer
+        metrics:
+          type: object
+          additionalProperties:
+            type: integer
+
+    NidraStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        total_consolidated:
+          type: integer
+        last_run:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+
+    PheromoneResponse:
+      type: object
+      properties:
+        trail:
+          type: string
+          example: tasks/priority/high
+        signal_type:
+          type: string
+          example: success
+        emitter:
+          type: string
+          example: agent-planner-01
+        intensity:
+          type: number
+          example: 0.85
+        current_intensity:
+          type: number
+          description: Decayed intensity at query time
+        half_life_secs:
+          type: number
+          example: 1800
+        deposited_at:
+          type: string
+          format: date-time
+        payload:
+          description: Optional attached data
+
+    DepositPheromoneBody:
+      type: object
+      required: [trail]
+      properties:
+        trail:
+          type: string
+          description: Path for the pheromone trail
+        signal_type:
+          type: string
+          default: success
+          enum: [success, failure, discovery, warning, reinforcement]
+        emitter:
+          type: string
+          default: anonymous
+          description: ID of the emitting agent
+        intensity:
+          type: number
+          default: 1.0
+          minimum: 0
+          maximum: 10
+        half_life_secs:
+          type: number
+          default: 3600
+          description: Decay half-life in seconds
+        payload:
+          description: Optional data to attach to the pheromone
+
+    MemoryLayersResponse:
+      type: object
+      properties:
+        layers:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                enum: [working, episodic, semantic, procedural]
+              record_count:
+                type: integer
+              description:
+                type: string
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []

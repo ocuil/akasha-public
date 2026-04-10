@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akasha API — Documentation</title>
+    <meta name="description" content="Interactive API documentation for Akasha — the shared cognitive fabric for intelligent agent systems.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; }
+        /* Override Redoc theme to match Akasha dark branding */
+    </style>
+</head>
+<body>
+    <div id="redoc-container"></div>
+
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    <script>
+        // Load spec from relative path or inline
+        const specUrl = './openapi.yaml';
+        
+        Redoc.init(specUrl, {
+            theme: {
+                colors: {
+                    primary: { main: '#6c5ce7' },
+                    success: { main: '#00b894' },
+                    warning: { main: '#fdcb6e' },
+                    error: { main: '#e17055' },
+                    text: { primary: '#e8e8f0', secondary: '#8888a8' },
+                    border: { dark: '#2a2a3e', light: '#1a1a28' },
+                },
+                schema: {
+                    nestedBackground: '#12121a',
+                },
+                typography: {
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    fontSize: '15px',
+                    headings: { fontFamily: 'Inter, sans-serif' },
+                    code: { fontFamily: 'JetBrains Mono, monospace', fontSize: '13px' },
+                },
+                sidebar: {
+                    backgroundColor: '#0a0a0f',
+                    textColor: '#8888a8',
+                    activeTextColor: '#a29bfe',
+                },
+                rightPanel: {
+                    backgroundColor: '#0e0e16',
+                },
+            },
+            scrollYOffset: 0,
+            hideDownloadButton: false,
+            expandResponses: '200',
+            jsonSampleExpandLevel: 2,
+            sortOperationsAlphabetically: false,
+            nativeScrollbars: true,
+        }, document.getElementById('redoc-container'));
+    </script>
+</body>
+</html>
