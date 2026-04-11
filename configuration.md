@@ -176,6 +176,48 @@ sweep_interval_secs = 10
 |-----------|---------|-------------|
 | `usage_metrics` | `true` | Send anonymous usage metrics (opt-out by setting `false`) |
 
+## `[encryption]` — Encryption At-Rest (BYOK)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enabled` | `false` | Enable AES-256-GCM encryption for all record values on disk |
+| `algorithm` | `"aes-256-gcm"` | Encryption algorithm (only `aes-256-gcm` supported) |
+| `key_file` | `""` | Path to file containing hex-encoded 256-bit key (64 chars) |
+| `key_env` | `""` | Environment variable containing hex-encoded key |
+
+```toml
+[encryption]
+enabled = true
+algorithm = "aes-256-gcm"
+key_file = "/secrets/akasha.key"
+# key_env = "AKASHA_ENCRYPTION_KEY"  # Alternative
+```
+
+> **BYOK**: Akasha never generates master keys. You provide your own key and are responsible for its safekeeping. If the key is lost, encrypted data cannot be recovered.
+
+## `[[namespaces]]` — Namespace Write Policies
+
+Define granular write control per namespace prefix:
+
+| Parameter | Description |
+|-----------|-------------|
+| `prefix` | Path prefix to match (e.g., `"shared/"`, `"audit/"`) |
+| `policy` | Write policy: `lww`, `cas_only`, `append_only`, `immutable` |
+
+```toml
+[[namespaces]]
+prefix = "shared/"
+policy = "cas_only"      # Requires If-Match header for all writes
+
+[[namespaces]]
+prefix = "audit/"
+policy = "append_only"   # Create-only — no updates or deletes
+
+[[namespaces]]
+prefix = "memory/procedural/"
+policy = "immutable"     # Write-once — no modifications ever
+```
+
 ## Example: Production 3-Node Cluster
 
 ```toml
@@ -194,6 +236,11 @@ enabled = true
 [tls]
 enabled = true
 
+[encryption]
+enabled = true
+algorithm = "aes-256-gcm"
+key_file = "/secrets/akasha.key"
+
 [cluster]
 enabled = true
 node_id = "akasha-01"
@@ -206,4 +253,12 @@ cluster_key = "my-secure-key"
 [nidra]
 enabled = true
 sweep_interval_secs = 300
+
+[[namespaces]]
+prefix = "shared/"
+policy = "cas_only"
+
+[[namespaces]]
+prefix = "audit/"
+policy = "append_only"
 ```

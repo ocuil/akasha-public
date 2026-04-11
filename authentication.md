@@ -195,3 +195,64 @@ require_client_cert = true
 - [ ] Create API keys with minimal namespace scoping
 - [ ] Revoke unused API keys promptly
 - [ ] Set `jwt_secret` explicitly (don't rely on auto-generation across restarts)
+- [ ] Enable encryption at-rest with your own key (`[encryption] enabled = true`)
+- [ ] Store the encryption key securely (Kubernetes Secret, Vault, etc.)
+- [ ] Monitor the audit trail (`GET /api/v1/audit`) for suspicious activity
+
+## Encryption At-Rest (BYOK)
+
+All record values are encrypted before writing to disk using **AES-256-GCM** (authenticated encryption with associated data). The operator provides their own 256-bit master key.
+
+### Configuration
+
+```toml
+[encryption]
+enabled = true
+algorithm = "aes-256-gcm"
+key_file = "/secrets/akasha.key"    # 64 hex characters = 256-bit key
+# key_env = "AKASHA_ENCRYPTION_KEY"  # Alternative: environment variable
+```
+
+### Generate a key
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))" > encryption.key
+# Result: 535655aa23fd38a46bda73e3025f94df1bb6130938b786e82f6c7b261a184687
+```
+
+### Key properties
+
+- **Authenticated**: AES-GCM detects any tampering with ciphertext
+- **Nonces**: 96-bit random per operation — never reused
+- **Versioned wire format**: `[version(1)][nonce(12)][ciphertext+tag]`
+- **Migration**: Unencrypted records are read transparently during transition
+- **Performance**: ~3% overhead (AES-NI hardware acceleration)
+
+## Audit Trail
+
+All security events are recorded as immutable records in `audit/` (enforced `append_only` policy):
+
+### Query the audit trail
+
+```bash
+# All events (last 100)
+curl -sk -H "Authorization: Bearer $AKASHA_TOKEN" \
+  "https://localhost:7777/api/v1/audit?limit=100"
+
+# Filter by category
+curl -sk -H "Authorization: Bearer $AKASHA_TOKEN" \
+  "https://localhost:7777/api/v1/audit?category=auth&limit=50"
+```
+
+### Event categories
+
+| Category | Events |
+|----------|--------|
+| `auth` | Login success/failure, rate limiting |
+| `admin` | User created/updated/deleted, API key created/revoked |
+| `policy` | Namespace policy violations (403) |
+| `system` | Encryption loaded, Nidra consolidation |
+
+### Retention
+
+Audit records have a **90-day TTL** and are automatically cleaned up by the TTL reaper.
