@@ -739,65 +739,6 @@ Akasha, [Mem0](https://github.com/mem0ai/mem0), and [Letta](https://github.com/l
 | [Python SDK](sdks/python/README.md) | Python SDK with gRPC + HTTP + async support |
 | [Node.js SDK](sdks/node/README.md) | TypeScript SDK with gRPC + HTTP + WebSocket |
 
-## Project Structure
-
-```
-akasha/
-├── akasha-core/               # Core engine crate
-│   └── src/
-│       ├── store.rs           # DashMap store + put_replicated()
-│       ├── record.rs          # Versioned records with TTL, tags
-│       ├── event.rs           # Event pub/sub system
-│       ├── query.rs           # Glob pattern matching engine
-│       ├── persistence.rs     # PersistenceBackend trait + RocksDB
-│       ├── auth.rs            # 🔐 Auth — JWT, API keys, RBAC, Argon2id
-│       ├── ttl.rs             # Background TTL reaper
-│       ├── pheromone.rs       # 🐜 Stigmergy — pheromone traces with decay
-│       ├── memory.rs          # 🧠 Cognitive Fabric — 4-layer hierarchy
-│       ├── nidra.rs           # 🧘 Nidra — sleep-like consolidation
-│       ├── consolidation.rs   # 🔌 Pluggable consolidation hooks (Rule/LLM)
-│       ├── elastic.rs         # 📊 Elasticsearch async forwarder
-│       ├── license.rs         # 🔑 Ed25519 license system
-│       └── cluster/           # 🌐 Distributed cluster (Enterprise)
-│           ├── membership.rs  #   SWIM membership (join/leave/suspect)
-│           ├── gossip.rs      #   UDP gossip transport + HMAC auth
-│           ├── gossip_raft.rs #   GossipRaft consensus (leader election)
-│           ├── sync.rs        #   CrdtState (HLC, LWW, anti-entropy)
-│           ├── crdt.rs        #   Delta tracker + batch chunking
-│           ├── node.rs        #   NodeInfo, NodeStatus, NodeRole
-│           └── control.rs     #   Control plane operations
-├── akasha-server/             # Gateway crate
-│   └── src/
-│       ├── main.rs            # Server bootstrap + cluster wiring
-│       ├── config.rs          # TOML configuration
-│       ├── grpc/              # gRPC service (tonic)
-│       └── http/
-│           ├── routes.rs      # REST API routes (axum)
-│           ├── auth_routes.rs # 🔐 Auth + Admin API endpoints
-│           ├── middleware.rs   # 🔐 JWT/API key auth middleware
-│           └── ws.rs          # WebSocket event stream
-├── akasha-tools/              # 🔑 License + API key CLI tool
-├── dashboard-spa/             # 📊 React SPA (embedded in binary)
-│   ├── src/
-│   │   ├── App.tsx            # Router + auth check
-│   │   ├── api/client.ts      # Fetch wrapper with JWT
-│   │   ├── components/        # Layout, sidebar, modals
-│   │   └── pages/             # Dashboard, Explorer, Admin
-│   └── dist/                  # Built assets (rust-embed target)
-├── sdks/
-│   ├── python/                # Python SDK (gRPC + HTTP, sync + async)
-│   └── node/                  # Node.js SDK (TypeScript, gRPC + HTTP)
-├── tests/
-│   ├── e2e_agents.py          # 3-agent E2E simulation test
-│   └── e2e-cluster.sh         # 🧪 29-test distributed cluster E2E
-├── deploy/cluster/            # Per-node cluster configs
-├── docker-compose.yml         # 3-node Enterprise cluster
-├── Dockerfile                 # 3-stage: Node→Rust→Runtime
-├── akasha.toml                # Default standalone configuration
-├── LICENSE                    # Akasha Source License 1.0
-└── README.md                  # You are here
-```
-
 ## License Tiers
 
 | Feature | Community | Basic | Enterprise |
