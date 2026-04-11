@@ -1,0 +1,66 @@
+#!/bin/bash
+# ============================================================
+# Pre-push hook for akasha-public
+# ============================================================
+# Prevents accidental publication of internal code or structure.
+# Install: cp .githooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# ============================================================
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+ERRORS=0
+
+echo "🔒 Running security checks before push..."
+
+# 1. No Rust source files
+if find . -name "*.rs" -not -path "./.git/*" | grep -q .; then
+  echo -e "${RED}❌ BLOCKED: Rust source files (.rs) detected in public repo!${NC}"
+  find . -name "*.rs" -not -path "./.git/*"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 2. No Cargo.toml (engine code)
+if [ -f "Cargo.toml" ]; then
+  echo -e "${RED}❌ BLOCKED: Cargo.toml detected in public repo!${NC}"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 3. No internal path references in README
+if grep -rn "akasha-core/\|akasha-server/\|akasha-tools/" README.md 2>/dev/null; then
+  echo -e "${RED}❌ BLOCKED: Internal paths (akasha-core/, akasha-server/) found in README!${NC}"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 4. No Project Structure section in README
+if grep -n "## Project Structure" README.md 2>/dev/null; then
+  echo -e "${RED}❌ BLOCKED: 'Project Structure' section found in README!${NC}"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 5. No docker-compose or Dockerfiles
+if find . \( -name "docker-compose*.yml" -o -name "Dockerfile" \) -not -path "./.git/*" | grep -q .; then
+  echo -e "${RED}❌ BLOCKED: Docker files detected in public repo!${NC}"
+  find . \( -name "docker-compose*.yml" -o -name "Dockerfile" \) -not -path "./.git/*"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 6. No .toml config files (except pyproject.toml for SDKs)
+if find . -name "*.toml" -not -name "pyproject.toml" -not -path "./.git/*" | grep -q .; then
+  echo -e "${RED}❌ BLOCKED: TOML config files detected in public repo!${NC}"
+  find . -name "*.toml" -not -name "pyproject.toml" -not -path "./.git/*"
+  ERRORS=$((ERRORS + 1))
+fi
+
+if [ $ERRORS -gt 0 ]; then
+  echo ""
+  echo -e "${RED}🛑 Push BLOCKED — $ERRORS security violation(s) detected.${NC}"
+  echo "The public repository must NOT contain internal source code or configuration."
+  exit 1
+fi
+
+echo -e "${GREEN}✓ All security checks passed.${NC}"
+exit 0
