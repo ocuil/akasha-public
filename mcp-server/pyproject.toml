@@ -1,0 +1,37 @@
+[project]
+name = "akasha-mcp"
+version = "1.2.0"
+description = "MCP Server for Akasha — Give your AI agents persistent shared memory"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Alejandro Sánchez Losa", email = "ale@alejandrosl.com"}]
+keywords = ["mcp", "memory", "ai", "agents", "llm", "claude", "cognitive", "stigmergy"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "fastmcp>=2.0",
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/ocuil/akasha-public"
+Documentation = "https://ocuil.github.io/akasha-public/"
+Repository = "https://github.com/ocuil/akasha-public/tree/main/mcp-server"
+"Docker Hub" = "https://hub.docker.com/r/alejandrosl/akasha"
+
+[project.scripts]
+akasha-mcp = "server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
