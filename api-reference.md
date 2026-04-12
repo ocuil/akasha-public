@@ -193,6 +193,36 @@ Returns agents found under `agents/*/state`:
 
 ---
 
+## Diagnostics
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v1/diag/report` | ADMIN | Full diagnostic report with health score |
+
+### `GET /api/v1/diag/report`
+
+Returns a comprehensive cluster health assessment. **Requires admin role.**
+
+Response includes:
+- `health_score` (0-100) — weighted aggregate from 8 checks
+- `health_signal` — 🟢 (≥80), 🟡 (50-79), 🔴 (<50)
+- `topology` — nodes, Raft state, versions
+- `consistency` — records, CRDT HLC, pending deltas
+- `performance` — CPU/MEM/Disk, R/W/Q counters, uptime
+- `memory` — layer distribution (working/episodic/semantic/procedural)
+- `security` — encryption, TLS, license, namespace policies
+- `nidra` — consolidation engine status
+- `findings` — issues with severity (critical/warning/info)
+- `markdown` — full human-readable report for export
+
+**Extract Markdown report:**
+```bash
+curl -sk https://host:7777/api/v1/diag/report \
+  -H "Authorization: Bearer $TOKEN" | jq -r .markdown > report.md
+```
+
+---
+
 ## Authentication
 
 | Method | Path | Auth | Description |

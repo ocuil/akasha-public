@@ -2,6 +2,41 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.1.1] — 2026-04-12
+
+### 🔍 Diagnostics Report Endpoint
+
+- **`GET /api/v1/diag/report`**: Comprehensive cluster diagnostic report (admin-only)
+  - **Health Score** (0-100) with traffic-light signal (🟢🟡🔴)
+  - **8 weighted checks**: cluster topology, CRDT consistency, encryption, memory layers, disk, license, Nidra, CPU
+  - **Sections**: topology, consistency, performance, memory layers, security posture, Nidra status
+  - **Findings**: severity-tagged issues (critical/warning/info) with recommendations
+  - **Embedded Markdown**: full human-readable report for export (`jq -r .markdown > report.md`)
+  - Foundation for future `akasha diag collect` CLI (binary blob for professional services)
+
+### ⚡ Sync Backpressure Fix
+
+- **Sync bridge channel**: 256 → 4096 capacity (prevents CRDT data loss under load)
+- **Bulk-drain consumer**: processes up to 256 batches per iteration instead of one-at-a-time
+- **Concurrent cluster metrics fan-out**: parallel `tokio::spawn` instead of sequential (2s total vs 2s × N)
+- **Outgoing gossip channel**: 1024 → 4096 capacity
+- Peer unreachable errors downgraded from WARN to DEBUG (expected under load testing)
+
+### 🤖 MCP Server v1.2.0
+
+- **New tool**: `akasha_diagnostics()` — LLMs can request full cluster health assessment
+- **New resource**: `akasha://diagnostics` — Markdown report via URI
+- **Updated prompt**: `system_health_check` uses diagnostics endpoint
+
+### 🛡️ Namespace Isolation
+
+- **API key namespace enforcement**: `Identity.can_access()` integrated into all CRUD, query, and admin handlers
+- **5 isolation checks**: write-allow, write-deny, read-deny, query-filter, delete-deny (validated in QA)
+
+### Metrics
+- QA suite: **41 tests** (38 pass, 1 skip, 1 TLS timeout post-stress), diagnostics test included
+- Stress test: 50K records × 1000 concurrency validated sync backpressure fix
+
 ## [1.1.0] — 2026-04-11
 
 ### 🔒 Encryption At-Rest (BYOK — Bring Your Own Key)
