@@ -1,4 +1,4 @@
-# Akasha — The Memory Layer for Intelligent Agents
+# Akasha — Persistent Memory for AI Agents
 
 > *"What if your AI agents could remember, learn, and coordinate — without you wiring every connection?"*
 
@@ -6,41 +6,26 @@
 
 ## The Problem
 
-The enterprise AI landscape in 2026 looks like this:
+Every organization deploying AI agents in 2026 hits the same wall:
 
-**Every organization is deploying multiple AI agents.** A planner that schedules tasks. A researcher that retrieves documents. A coder that writes software. A monitor that watches production systems. Each agent is intelligent in isolation — but **collectively, they are amnesiac**.
+**Agents are individually smart but collectively amnesiac.** A planner schedules tasks. A researcher retrieves documents. A coder writes software. A monitor watches production. Each one is intelligent in isolation — but none of them remember what the others learned.
 
-### The Three Broken Promises of Multi-Agent Systems
+### Three Broken Promises of Multi-Agent Systems
 
 #### 1. Agents Forget Everything
-When Agent A discovers that "the client prefers summaries under 200 words," that insight dies with the session. The next time Agent B handles the same client, it starts from zero. Every interaction is a first interaction. **There is no shared learning.**
+When Agent A discovers "the client prefers summaries under 200 words", that knowledge dies with the session. Next time Agent B serves the same client, it starts from scratch. **There is no shared learning.**
 
-#### 2. Agents Can't Coordinate Without a Director
-Today, if you want Agent A to pass context to Agent B, you build a pipeline. If Agent C needs to know what Agent A learned, you build another pipeline. For N agents, you need N² connections. **This doesn't scale.** And it makes your system brittle — one broken pipe, and the whole orchestra stops.
+#### 2. Coordination Requires Custom Plumbing
+If Agent A needs to pass context to Agent B, you build a pipeline. If Agent C needs to know what Agent A learned, you build another. For N agents, you need N² connections. **This doesn't scale.**
 
-#### 3. Infrastructure Wasn't Built for This
-Traditional databases store data. Vector databases store embeddings. Neither stores *knowledge* — the structured, evolving understanding that agents build over time. You end up duct-taping Redis, Pinecone, PostgreSQL, and a message queue together, and you still don't have a system where agents genuinely share cognition.
-
-### The Cost of Inaction
-
-Organizations running multi-agent systems today face:
-
-| Symptom | Root Cause | Business Impact |
-|---------|-----------|----------------|
-| Agents repeat the same mistakes | No shared memory | Wasted compute, user frustration |
-| Coordination requires custom code | No stigmergic layer | Months of engineering per workflow |
-| Agent context is lost between sessions | Ephemeral state | Degraded user experience over time |
-| Scaling from 3 to 30 agents breaks everything | No distributed fabric | Architecture ceiling |
+#### 3. Infrastructure Wasn't Designed For This
+Traditional databases store data. Vector databases store embeddings. Neither stores *knowledge* — the structured, evolving understanding that agents build over time.
 
 ---
 
 ## The Solution: Akasha
 
-Akasha is a **distributed memory fabric** purpose-built for multi-agent AI systems. 
-
-Think of it as the "shared brain" that sits behind all your agents — not replacing them, but **giving them a place to store knowledge, recall experiences, and coordinate without explicit wiring.**
-
-### How It Works (30-Second Version)
+Akasha is a **persistent memory system** for AI agents. It sits behind your agents — it doesn't replace them, it **gives them a shared space to store knowledge, recall experiences, and coordinate without explicit wiring.**
 
 ```
 ┌─────────┐  ┌─────────┐  ┌─────────┐
@@ -53,47 +38,97 @@ Think of it as the "shared brain" that sits behind all your agents — not repla
           ┌───────▼───────┐
           │    AKASHA     │
           │               │
-          │  Working ─────│── What agents are doing right now
-          │  Episodic ────│── What happened (event history)
-          │  Semantic ────│── What agents have learned
-          │  Procedural ──│── How to do things (workflows)
+          │  Working ─────│── What they're doing now
+          │  Episodic ────│── What happened (history)
+          │  Semantic ────│── What they've learned
+          │  Procedural ──│── How to do things
           │               │
-          │  Pheromones ──│── Indirect coordination signals
+          │  Pheromones ──│── Coordination signals
           │               │
           └───────────────┘
 ```
 
 Any agent can **write** what it learns. Any agent can **read** what others know. No pipelines. No message queues. No orchestrator deciding who talks to whom.
 
-### The Bio-Inspired Difference
+---
 
-Akasha borrows from two powerful models in nature:
+## Key Design Principles
 
-**1. Human Memory** — Your brain doesn't keep every sensory input forever. It consolidates: short-term impressions become long-term knowledge during sleep. Akasha does the same. A background process called **Nidra** (Sanskrit for "sleep") periodically compacts episodic events into semantic knowledge — automatically extracting patterns, discarding noise, and building lasting understanding.
+### Four Memory Layers (Inspired by Cognitive Science)
 
-**2. Ant Colony Intelligence** — Ants don't have a project manager. They coordinate through *pheromones* — chemical signals left in the environment. When one ant finds food, it leaves a trail. Others follow, reinforce, or let it fade. Akasha implements this as **stigmergy**: agents leave signals that others detect and respond to — without ever communicating directly.
+Modeled after the human memory hierarchy:
 
-The result: **emergent coordination.** Agents self-organize around tasks, priorities, and discoveries — just like a colony of 10,000 ants can build a bridge without a single blueprint.
+| Layer | Purpose | Lifespan | Analogy |
+|-------|---------|----------|---------|
+| **Working** | Current task scratchpad | Minutes | Your desk notepad |
+| **Episodic** | Events, outcomes, decisions | Hours → Days | Your journal |
+| **Semantic** | Facts, patterns, learned insights | Days → Permanent | Your knowledge base |
+| **Procedural** | Proven workflows, playbooks | Permanent | Your muscle memory |
+
+### Nidra — Automatic Memory Consolidation
+
+Named after *Yoga Nidra* (yogic sleep), Nidra is a background process that organizes memory — like how your brain consolidates experiences during sleep.
+
+> [!IMPORTANT]
+> **What Nidra actually does (implementation reality):**
+> - **Default mode (rule-based, no LLM):** Counts records per topic, identifies high-activity areas, creates summary records in the semantic layer. **Original records are tagged as consolidated — never deleted.**
+> - **LLM mode (Enterprise, opt-in):** If explicitly configured, uses an LLM to extract patterns. Prompts are deterministic and auditable.
+> - **Pheromone evaporation:** Only affects pheromone signals (coordination hints). Never touches records, never deletes data.
+>
+> Nidra is NOT lossy compression. It's additive — it creates new knowledge without destroying sources.
+
+### Stigmergy — Coordination Without Communication
+
+Inspired by how ant colonies coordinate through environmental signals:
+
+- Agents emit **pheromone signals** (lightweight metadata with intensity and half-life)
+- Other agents sense these signals and respond accordingly
+- Signals naturally decay over time — old coordination cues fade, current ones stay strong
+
+> [!IMPORTANT]
+> **What pheromones actually are (implementation reality):**
+> - Pheromones are **coordination hints**, not message queues. They signal "discovery", "success", "warning", "claim" on a topic.
+> - They are NOT for guaranteed task delivery. For that, use regular records with no TTL.
+> - Think of them as "team status board" — not "work ticket queue".
+> - Akasha provides both models: durable records for data, ephemeral pheromones for coordination.
 
 ---
 
-## What Exists Today (v1.0.8)
+## What Akasha Is NOT
 
-Akasha is not a roadmap. It is production software, running today.
+To prevent misunderstanding, let's be explicit:
+
+| Akasha is... | Akasha is NOT... |
+|-------------|-----------------|
+| A persistent memory store | A message queue (use Kafka/RabbitMQ for guaranteed delivery) |
+| A coordination layer via stigmergy | A task orchestrator (use LangGraph/Temporal for DAGs) |
+| A path-based key-value system with glob queries | A vector database (use Qdrant/Pinecone for semantic search) |
+| Zero-LLM by default — sub-ms operations | LLM-dependent like Mem0 (which calls LLMs on every write) |
+| Infrastructure — it works with any agent framework | A framework — it doesn't replace LangGraph, CrewAI, etc. |
+
+---
+
+## What Exists Today (v1.1.2)
+
+Akasha is production software running today — not a roadmap.
 
 ### Core Capabilities
 
-| Capability | Status | What It Means |
+| Capability | Status | What it means |
 |-----------|--------|---------------|
-| **Shared Key-Value Memory** | ✅ Production | Any agent reads/writes records via REST or gRPC |
+| **Persistent Key-Value Memory** | ✅ Production | Any agent reads/writes records via REST, gRPC, or MCP |
 | **Four Memory Layers** | ✅ Production | Working, Episodic, Semantic, Procedural — each with appropriate retention |
-| **Pheromone Trails** | ✅ Production | Agents coordinate via environment signals, not direct messaging |
-| **Memory Consolidation (Nidra)** | ✅ Production | Automatic compression of episodic → semantic knowledge |
-| **Optimistic Concurrency (CAS)** | ✅ Production | Safe multi-agent writes without locks |
-| **3-Node HA Clustering** | ✅ Production | CRDT-based replication, zero-downtime operations |
+| **Pheromone Trails** | ✅ Production | Agents coordinate via environmental signals, not direct messaging |
+| **Memory Consolidation (Nidra)** | ✅ Production | Automatic pattern extraction — originals always preserved |
+| **Optimistic Concurrency (CAS)** | ✅ Production | Multi-agent safe writes without locks |
+| **3-Node HA Cluster** | ✅ Production | CRDT-based replication, zero-downtime operations |
+| **MCP Server** | ✅ Production | Native integration with Claude, Gemini, Cursor, and any MCP client |
 | **Auto-TLS** | ✅ Production | Encrypted by default, zero configuration |
 | **Dashboard** | ✅ Production | Real-time visibility into memory state and cluster health |
-| **Sub-Millisecond Latency** | ✅ Verified | P50: 1.2ms. No LLM calls in the hot path |
+| **Encryption at Rest (BYOK)** | ✅ Production | AES-256-GCM with Bring Your Own Key |
+| **Immutable Audit Trail** | ✅ Production | All security events logged, append-only, non-deletable |
+| **Sync Backpressure** | ✅ Production | Rate-limited anti-entropy, zero data loss under load |
+| **Diagnostic Reports** | ✅ Production | Health scoring (0-100) with topology, security, and performance analysis |
 
 ### Distribution
 
@@ -101,129 +136,137 @@ Akasha is not a roadmap. It is production software, running today.
 |---------|------|
 | **Docker Hub** | `docker pull alejandrosl/akasha` |
 | **Python SDK** | `pip install akasha-client` |
+| **Node.js SDK** | `npm install akasha-memory` |
+| **MCP Server** | [github.com/ocuil/akasha-public/mcp-server](https://github.com/ocuil/akasha-public/tree/main/mcp-server) |
 | **GitHub** | [github.com/ocuil/akasha-public](https://github.com/ocuil/akasha-public) |
-| **Binary releases** | Linux x86_64 + macOS Intel |
-
-### Integration Ecosystem
-
-Akasha integrates out-of-the-box with the major agent frameworks:
-
-- **LangGraph** / LangChain
-- **CrewAI**
-- **AutoGen** (Microsoft)
-- **OpenAI Agents SDK**
-- **Google ADK**
-- **Semantic Kernel**
-- **Hugging Face smolagents**
-
-No vendor lock-in. Any framework. Any LLM. Any cloud.
 
 ### Performance Profile
 
 | Metric | Value | Context |
 |--------|-------|---------|
-| Read latency (P50) | **1.2 ms** | 40× faster than Mem0 |
-| Write latency (P50) | **1.5 ms** | No LLM in the write path |
-| Binary size | **25 MB** | Single binary, no JVM, no runtime |
+| Read latency (P50) | **1.2 ms** | No LLM calls in the read path |
+| Write latency (P50) | **1.5 ms** | No LLM calls in the write path |
+| Throughput | **2,237 ops/sec** | Concurrent multi-agent workload |
+| Binary size | **25 MB** | Single executable, no JVM, no runtime |
 | Docker image | **46 MB** | Smaller than a Node.js hello-world |
 | Memory footprint | **~50 MB** | For 100K records |
-| Tests | **163 passing** | Unit + integration, zero failures |
+| QA Suite | **41/41 passing** | Unit + integration + cluster E2E |
 
 ---
 
-## What Problem Does This Solve — Concretely?
+## Concrete Use Cases
 
-### Scenario: Customer Support AI
-
-**Without Akasha:**
-- Agent A handles a ticket. Client mentions they prefer email over Slack.
-- Agent A closes the ticket. That preference is gone.
-- Next week, Agent B reopens a related ticket. Contacts the client on Slack.
-- Client is frustrated. "I already told you this."
-
-**With Akasha:**
-- Agent A writes to `memory/semantic/clients/acme/preferences`: `{"channel": "email"}`
-- Agent B reads it before acting. Uses email.
-- Agent C (a summarizer) reads **all** client interactions from `memory/episodic/clients/acme/**` and consolidates patterns.
-- Nidra compacts 200 interaction logs into 3 semantic insights — automatically.
-
-**Zero custom pipelines. Zero coordination code. Zero data lost.**
-
-### Scenario: Multi-Agent Development Team
+### Use Case 1: Persistent Context Across Sessions
 
 **Without Akasha:**
-- Coder agent generates code. Reviewer agent reviews it. But they don't share context — the reviewer re-reads everything from scratch.
-- A test agent finds a recurring pattern of null-check failures. That insight exists in a log file that nobody reads.
+```
+Monday:  Claude analyzes 500 documents → generates conclusions
+Tuesday: Claude remembers NOTHING from Monday
+         Inject 10M tokens? → $15-40 per conversation, 30s latency
+```
 
 **With Akasha:**
-- Coder writes its working state to `memory/working/coder/current-task`
-- Reviewer reads it, already understands the intent
-- Test agent writes `memory/semantic/patterns/null-check-failures` with frequency data
-- Coder reads the pattern on the next task. **Stops making that mistake.**
-- A pheromone trail at `pheromones/code-review-needed` signals the reviewer without a message queue
+```
+Monday:  Claude stores key findings → memory/semantic/research/api-design
+Tuesday: Claude reads 200 tokens → has full context → $0.001, instant
+```
 
-The agents **learn from each other** without being told to.
+### Use Case 2: Multi-Agent Knowledge Sharing
 
----
+**Without Akasha:**
+```
+Agent A: "Client prefers email over Slack" → dies with session
+Agent B: Contacts client via Slack → client frustrated
+```
 
-## Where It's Going
+**With Akasha:**
+```
+Agent A: writes memory/semantic/clients/acme/preferences → {"channel": "email"}
+Agent B: reads it before acting → uses email → client happy
+```
 
-Akasha solves the foundational layer — the shared cognitive fabric. The roadmap extends into three horizons:
+### Use Case 3: Agent Coordination (Stigmergy)
 
-### Horizon 1: Foundation (Now → Q3 2026)
-*Make the fabric production-grade for early adopters*
+**Without Akasha:**
+```
+Agent A starts task → nobody knows
+Agent B starts SAME task → wasted computation
+```
 
-- ✅ Core memory + clustering + CAS concurrency
-- ✅ Python SDK on PyPI
-- ◻️ Node.js SDK on npm
-- ◻️ Conflict resolution policies per namespace
-- ◻️ Prometheus metrics + Grafana dashboards
-
-### Horizon 2: Intelligence (Q3 → Q4 2026)
-*The fabric starts thinking*
-
-- ◻️ LLM-powered consolidation (Nidra + language models)
-- ◻️ Automatic entity extraction and knowledge graphs
-- ◻️ Webhook/event streaming for external systems
-- ◻️ Multi-region clustering
-
-### Horizon 3: Ecosystem (2027)
-*Akasha becomes the standard*
-
-- ◻️ Managed cloud offering
-- ◻️ Marketplace for pre-built agent memory schemas
-- ◻️ Compliance and audit trails for regulated industries
-- ◻️ SDKs for Go, Java, Rust
+**With Akasha:**
+```
+Agent A: emits pheromone("tasks/enrichment", signal=CLAIM) → "I'm on it"
+Agent B: senses pheromone → "Already claimed, I'll do something else"
+```
 
 ---
 
 ## Competitive Position
 
-| | Akasha | Mem0 | Letta | Custom (Redis + Vector DB) |
-|--|--------|------|-------|---------------------------|
-| **Deployment** | Self-hosted, single binary | Cloud-only | Self-hosted | DIY |
-| **Latency** | 1.2ms (P50) | ~50ms | ~100ms | Varies |
-| **LLM dependency** | None | Required | Required | None |
-| **Clustering** | ✅ 3-node HA, CRDT | ❌ | ❌ | DIY |
-| **Agent coordination** | ✅ Stigmergy | ❌ | ❌ | ❌ |
-| **Memory consolidation** | ✅ Automatic | ❌ | Manual | ❌ |
-| **Cost at scale** | Fixed (infra only) | Per-API-call | Fixed | High (engineering) |
-| **Vendor lock-in** | None | High | Medium | None |
+| | **Akasha** | **Mem0** | **Zep (Graphiti)** | **Custom (Redis + VectorDB)** |
+|--|---|---|---|---|
+| **Write latency** | **<1 ms** (0 LLM) | ~1,400 ms (2 LLM calls) | ~200 ms | Variable |
+| **Read latency** | **<1 ms** | ~200-500 ms | ~200 ms | Variable |
+| **LLM dependency** | **None** (optional) | **Critical** | **Critical** | None |
+| **Multi-agent** | ✅ Native | ❌ Single-user | ❌ Single-user | DIY |
+| **Coordination** | ✅ Stigmergy | ❌ | ❌ | ❌ |
+| **Clustering (HA)** | ✅ CRDT 3+ nodes | ❌ | ❌ | DIY |
+| **Self-hosted** | ✅ Single binary | ❌ Cloud + Qdrant | ❌ Neo4j | DIY |
+| **MCP Server** | ✅ Native | ❌ | ❌ | ❌ |
 
-The key differentiator: **Akasha is the only system that treats agent memory as a first-class distributed system** — with concurrency control, clustering, bio-inspired consolidation, and stigmergic coordination. Everyone else is either a wrapper around vector search (Mem0) or a stateful agent framework (Letta).
+**Key insight:** Mem0 asks *"what facts should I remember about this user?"* (single-user personalization). Akasha asks *"how should a community of agents share and build knowledge?"* (multi-agent coordination). They solve different problems.
+
+---
+
+## Architecture At a Glance
+
+- **Engine:** Rust (single binary, zero dependencies)
+- **Storage:** RocksDB (WAL, LSM, LZ4 compression, optional AES-256-GCM encryption)
+- **APIs:** REST (HTTPS :7777) + gRPC (:50051) + MCP (stdio/SSE) + WebSocket + SSE
+- **Clustering:** SWIM gossip discovery + CRDT delta replication + GossipRaft consensus
+- **Auth:** JWT + API Keys, Argon2id hashing, RBAC, namespace isolation
+- **Dashboards:** Embedded React SPA (rust-embed, no separate server)
+
+---
+
+## Roadmap
+
+### Phase 1: Adoption (Now → Q3 2026)
+*Make it trivially easy to try*
+
+- ✅ MCP Server for Claude/Gemini/Cursor
+- ✅ Python & Node.js SDKs
+- ✅ Docker one-command deploy
+- ◻️ LangGraph integration example
+- ◻️ CrewAI integration example
+- ◻️ Google ADK integration
+
+### Phase 2: Intelligence (Q3 → Q4 2026)
+*The memory layer starts thinking*
+
+- ◻️ LLM-powered consolidation (Nidra + language models)
+- ◻️ Automatic entity extraction and knowledge graphs
+- ◻️ Temporal memory queries ("what changed last week?")
+
+### Phase 3: Ecosystem (2027)
+*Akasha becomes a standard*
+
+- ◻️ Managed cloud offering
+- ◻️ Pre-built agent memory schemas
+- ◻️ SDKs for Go, Java, Rust
 
 ---
 
 ## The Name
 
-**Akasha** (आकाश) is a Sanskrit term from ancient Indian philosophy. It refers to the fundamental substance of the cosmos — the "space" or "ether" that everything exists within, and through which all information travels.
+**Akasha** (आकाश) is Sanskrit for the fundamental substance of the cosmos — the "space" in which everything exists and through which all information travels.
 
-In Vedic cosmology, the Akashic Records are the universal memory — a field where every thought, action, and experience is inscribed. Not owned by any individual, but accessible to all.
+In Vedic cosmology, the Akashic Records are the universal memory — a field where every thought, action, and experience is inscribed. Owned by no individual, but accessible to all.
 
 That's what we're building: **the shared memory field for intelligent agents.**
 
 ---
 
-*Akasha is built with Rust for performance, designed with biology for intelligence, and distributed with intent for scale.*
+*Built with 🦀 Rust for performance · Designed with biology for intelligence · Distributed with intent to scale*
 
-*One binary. Zero dependencies. Infinite memory.*
+*One binary. Zero dependencies. Persistent memory.*
