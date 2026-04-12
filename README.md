@@ -12,13 +12,14 @@
 **The Shared Cognitive Fabric for Intelligent Agent Systems**
 
 [![License: ASL-1.0](https://img.shields.io/badge/License-ASL--1.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.1.0-purple.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.1.2-purple.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/docker/v/alejandrosl/akasha?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/alejandrosl/akasha)
 [![PyPI](https://img.shields.io/pypi/v/akasha-client?color=blue&label=PyPI)](https://pypi.org/project/akasha-client/)
 [![npm](https://img.shields.io/npm/v/akasha-memory?color=CB3837&label=npm)](https://www.npmjs.com/package/akasha-memory)
 [![Cluster](https://img.shields.io/badge/Cluster-3_node_HA-brightgreen.svg)](#enterprise-clustering)
-[![Tests](https://img.shields.io/badge/Tests-163_passing-success.svg)](#project-status)
+[![Tests](https://img.shields.io/badge/QA-41%2F41_passing-success.svg)](#project-status)
 [![Auth](https://img.shields.io/badge/Auth-JWT_%2B_API_Keys-orange.svg)](#authentication)
+[![MCP](https://img.shields.io/badge/MCP-Server_v1.2-blueviolet.svg)](#mcp-protocol)
 [![Encryption](https://img.shields.io/badge/Encryption-AES--256--GCM_BYOK-critical.svg)](#-security)
 [![Rust](https://img.shields.io/badge/Engine-Rust-orange.svg)](https://www.rust-lang.org/)
 [![gRPC](https://img.shields.io/badge/Protocol-gRPC-green.svg)](https://grpc.io/)
@@ -187,7 +188,8 @@ In complex multi-agent systems (RAG pipelines, automation workflows, LLM orchest
 │  │  • DashMap + RocksDB (local state)                   │        │
 │  │  • HLC + LWW registers (conflict resolution)        │        │
 │  │  • Delta gossip (sub-10ms LAN convergence)           │        │
-│  │  • Anti-entropy (15s full-state reconciliation)      │        │
+│  │  • Anti-entropy (rate-limited, 500 paths/tick)       │        │
+│  │  • Sync backpressure (send-with-timeout, no drops)   │        │
 │  │  • MTU-safe batch chunking (UDP-friendly)            │        │
 │  └──────────────────────────────────────────────────────┘        │
 │                                                                  │
@@ -332,8 +334,8 @@ curl -sk -X POST https://localhost:7771/api/v1/records/agents/test/state \
   -d '{"value": {"status": "active"}}'
 curl -sk https://localhost:7772/api/v1/records/agents/test/state  # ← replicated!
 
-# Run the full 29-test E2E suite
-bash tests/e2e-cluster.sh
+# Run the full QA suite (41 tests)
+python3 tools/akasha-qa.py
 ```
 
 ### Try It
@@ -547,8 +549,11 @@ dns_suffix = "sslip.io"            # Auto-cert domain suffix
 | `GET` | `/api/v1/cluster/nodes` | Cluster node topology |
 | `GET` | `/api/v1/cluster/sync` | CRDT sync status |
 | `GET` | `/api/v1/cluster/raft` | Raft consensus status |
+| `GET` | `/api/v1/diag/report` | 🔍 Cluster diagnostic report (admin) |
+| `GET` | `/api/v1/audit?category=...` | 📋 Security audit trail |
 | `GET` | `/dashboard/` | 📊 Enterprise Dashboard SPA |
 | `WS` | `/api/v1/stream?pattern=...` | WebSocket event stream |
+| `SSE` | `/api/v1/events?pattern=...` | Server-Sent Events stream |
 | | | |
 | **Auth** | | *Public (no auth required)* |
 | `POST` | `/api/v1/auth/login` | Login → JWT token |
@@ -676,7 +681,7 @@ Audit records have a 90-day TTL by default and are automatically cleaned up.
 | **CLI Key Generation** | ✅ **`akasha-license api-key`** |
 | **CRDT Replication (HLC + LWW)** | ✅ **29/29 E2E tests** |
 | **SWIM Gossip Discovery** | ✅ **3-node cluster** |
-| **Anti-Entropy Reconciliation** | ✅ **Full-state recovery** |
+| **Anti-Entropy Reconciliation** | ✅ **Rate-limited, backpressure-safe** |
 | **GossipRaft Consensus** | ✅ **Leader election + failover** |
 | **mTLS + HMAC Inter-Node** | ✅ **Encrypted cluster** |
 | **Distributed Nidra** | ✅ **Single-leader consolidation** |
@@ -685,7 +690,11 @@ Audit records have a 90-day TTL by default and are automatically cleaned up.
 | **Namespace Write Policies** | ✅ **LWW, CAS-only, append-only, immutable** |
 | **SSE Event Streaming** | ✅ **Real-time filtered event stream** |
 | **Batch Read API** | ✅ **Up to 1000 paths/request** |
-| Test Suite | ✅ 163+ tests passing (unit + integration) |
+| **Diagnostic Report API** | ✅ **Health score, topology, security posture** |
+| **MCP Server** | ✅ **Claude/Gemini agent integration** |
+| **Sync Backpressure** | ✅ **Rate-limited anti-entropy, zero data loss** |
+| **Namespace Isolation** | ✅ **Per-API-key path filtering** |
+| QA Suite | ✅ **41/41 tests (100%)** |
 
 ## How Akasha Compares
 

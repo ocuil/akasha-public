@@ -2,6 +2,31 @@
 
 All notable changes to Akasha are documented in this file.
 
+## [1.1.2] — 2026-04-12
+
+### 🛡️ Sync Backpressure & Anti-Entropy Hardening
+
+Root cause fix for channel saturation under load + node restart scenarios.
+
+- **Backpressure (gossip.rs)**: Replaced `try_send()` (silent data drop) with `send().await` + 50ms timeout — the system now **waits for capacity** instead of losing sync data
+- **Anti-entropy rate limiting**: Max 500 paths/tick with sliding window offset (was: ALL paths per tick). Full reconciliation completes in ~50 ticks (~12 minutes) without flooding
+- **Log noise reduction**: 1 backpressure warning per 100 deferred batches instead of per-batch spam
+- **Task fairness**: `yield_now()` after anti-entropy cycles to prevent HTTP server starvation
+- **Healthcheck tolerance**: timeout 5s→10s, retries 3→5, start_period 15s→30s — prevents premature `unhealthy` marking during sync bursts
+
+### 🔧 Diagnostic CLI Tool
+
+New binary: `akasha-diag` for professional cluster analysis.
+
+- **`akasha-diag collect`**: Calls `/api/v1/diag/report` → binary blob (`.akasha-diag`)
+- **`akasha-diag info`**: Shows blob metadata + SHA-256 integrity check
+- **Blob format v1**: `[AKDG magic][version][timestamp][zstd(msgpack)][SHA-256]` — 1.4KB typical for 3-node cluster
+- **No user data**: Only metadata, counts, and sanitized configuration
+
+### Metrics
+- QA suite: **41/41 tests (100%)**, health score 100/100 🟢
+- Zero channel full errors after stress test (50K records × 1000 concurrency) + node restart
+
 ## [1.1.1] — 2026-04-12
 
 ### 🔍 Diagnostics Report Endpoint
