@@ -104,7 +104,8 @@ Named after *Yoga Nidra* (yogic sleep), Nidra is a background process that mimic
 2. **Deep Sleep (Consolidate)** — Every ~1 hour
    - Scans episodic memory for high-activity topics
    - Extracts patterns into semantic knowledge
-   - Tags source records as consolidated
+   - **Archives source records to `_consolidated/`** with full audit tags (`_nidra_archived`, `_nidra_cycle`, `_archived_at`)
+   - Zero data loss — originals are never deleted
 
 3. **REM (Optimize)** — On-demand
    - Identifies redundant records
@@ -113,7 +114,7 @@ Named after *Yoga Nidra* (yogic sleep), Nidra is a background process that mimic
 
 Nidra supports **two consolidation modes**:
 - **Rule-based** (default, LLM-free) — counting, thresholds, dedup
-- **LLM-powered** (Enterprise) — pluggable `ConsolidationHook` trait with built-in Ollama/OpenAI support
+- **LLM-powered** (opt-in) — pluggable `ConsolidationHook` trait with built-in Ollama/OpenAI support. **Configurable from the admin Dashboard** with one-click connection testing and automatic model discovery.
 
 ---
 
@@ -494,10 +495,14 @@ batch_size = 1000
 flush_interval_secs = 5
 
 [llm]
-enabled = false
-provider = "ollama"
-endpoint = "http://localhost:11434/api/generate"
-model = "llama3.2"
+enabled = false                          # Set true to enable LLM-powered consolidation
+provider = "ollama"                      # "ollama" or "openai" (OpenAI-compatible)
+endpoint = "http://localhost:11434/api/generate"  # Your Ollama server URL
+model = "llama3.2"                       # Model to use (auto-discoverable from Dashboard)
+system_prompt = "You are Nidra, the consolidation engine of Akasha..."
+max_tokens = 1024
+# 💡 LLM config can also be managed at runtime from the admin Dashboard:
+#    Administration > LLM / Nidra tab > Test Connection / Discover Models
 
 [auth]
 enabled = true                       # Require authentication for all API requests
@@ -569,6 +574,12 @@ dns_suffix = "sslip.io"            # Auto-cert domain suffix
 | `GET` | `/api/v1/admin/keys` | List API keys |
 | `POST` | `/api/v1/admin/keys` | Create API key (returns key once) |
 | `DELETE` | `/api/v1/admin/keys/:id` | Revoke API key |
+| | | |
+| **LLM Config** | | *Requires Admin role* |
+| `GET` | `/api/v1/admin/llm/config` | Get current LLM/Nidra config |
+| `POST` | `/api/v1/admin/llm/config` | Update LLM config at runtime |
+| `POST` | `/api/v1/admin/llm/test` | Test connection to LLM endpoint |
+| `GET` | `/api/v1/admin/llm/models` | Discover available Ollama models |
 
 ### gRPC Service (Port :50051)
 
@@ -674,7 +685,8 @@ Audit records have a 90-day TTL by default and are automatically cleaned up.
 | Python SDK | ✅ Production-ready |
 | Node.js SDK | ✅ Production-ready |
 | Elasticsearch Forwarder | ✅ Implemented (Enterprise) |
-| LLM Consolidation Hooks | ✅ Implemented (Enterprise) |
+| LLM Consolidation Hooks | ✅ Production-ready (Ollama / OpenAI-compatible) |
+| LLM Dashboard Config | ✅ **Runtime config, test connection, model discovery** |
 | License Key System | ✅ Ed25519 cryptographic |
 | **Authentication (JWT + API Keys)** | ✅ **Argon2id + HMAC-SHA256** |
 | **Dashboard SPA (React)** | ✅ **Embedded in binary (rust-embed)** |
